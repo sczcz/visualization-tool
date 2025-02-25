@@ -10,6 +10,8 @@ export default function KonvaCanvas() {
   const [lines, setLines] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } }[]>([]);
   const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(null);
   const [savedStates, setSavedStates] = useState<any[]>([]);
+  const [locked, setLocked] = useState(false);
+  const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
 
@@ -39,6 +41,8 @@ export default function KonvaCanvas() {
   };
 
   const handleCanvasClick = (e: any) => {
+    if (locked) return;
+
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
@@ -93,6 +97,55 @@ export default function KonvaCanvas() {
     };
     
     setSavedStates((prevStates) => [...prevStates, newState]);
+    setLocked(true);
+  };
+
+  const handleLineClick = (index: number) => {
+    if (!locked) return;
+
+    const removedLine = lines[index];
+    setLines(lines.filter((_, i) => i !== index));
+
+    
+    setFreedPoints([removedLine.start, removedLine.end]);
+    setError(null);
+  };
+
+  const handleFlip = (e: any) => {
+    if (!locked || freedPoints.length !== 2) return;
+
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+    if (!pointerPos) return;
+
+    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y);
+
+    if (
+      !(
+        (snappedPos.x === freedPoints[0].x && snappedPos.y === freedPoints[0].y) ||
+        (snappedPos.x === freedPoints[1].x && snappedPos.y === freedPoints[1].y)
+      )
+    ) {
+      setError("You must connect a freed point to the old free point!");
+      setTimeout(() => setError(null), 1500);
+      return;
+    }
+
+    const newSegment = { start: snappedPos, end: freePoint! };
+
+    const hasIntersection = lines.some((existingLine) => doesIntersect(existingLine, newSegment));
+    if (hasIntersection) {
+      setError("DO NOT CROSS LINES!!!");
+      setTimeout(() => setError(null), 1500);
+      return;
+    }
+
+    const newFreePoint =
+    snappedPos.x === freedPoints[0].x && snappedPos.y === freedPoints[0].y ? freedPoints[1] : freedPoints[0];
+
+    setLines([...lines, newSegment]);
+    setFreedPoints([]);
+    setFreePoint(newFreePoint);
   };
   
 
@@ -115,7 +168,7 @@ export default function KonvaCanvas() {
           transition: "border 0.3s ease",
         }}
       >
-        <Stage width={800} height={600} onClick={handleCanvasClick} style={{ backgroundColor: "#f9f9f9" }}>
+        <Stage width={800} height={600} onClick={locked ? handleFlip : handleCanvasClick} style={{ backgroundColor: "#f9f9f9" }}>
           <Layer>
             {[...Array(800 / GRID_SIZE)].map((_, i) => (
               <Line key={i} points={[i * GRID_SIZE, 0, i * GRID_SIZE, 600]} stroke="#ddd" />
@@ -125,7 +178,7 @@ export default function KonvaCanvas() {
             ))}
 
             {lines.map((line, i) => (
-              <Line key={i} points={[line.start.x, line.start.y, line.end.x, line.end.y]} stroke="black" strokeWidth={2} />
+              <Line key={i} points={[line.start.x, line.start.y, line.end.x, line.end.y]} stroke="black" strokeWidth={2} onClick={() => handleLineClick(i)} />
             ))}
 
             {points.map((p, i) => (
@@ -142,7 +195,7 @@ export default function KonvaCanvas() {
         <ul>
           {savedStates.map((state, index) => (
             <li key={index}>
-              Config {index + 1} → {state.lines.length/2} segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
+              Matching {index + 1} → {state.lines.length/2} segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
             </li>
           ))}
         </ul>
