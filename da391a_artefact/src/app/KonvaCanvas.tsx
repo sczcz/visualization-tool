@@ -60,7 +60,7 @@ export default function KonvaCanvas() {
       const hasIntersection = lines.some((existingLine) => doesIntersect(existingLine, newSegment));
   
       if (hasIntersection) {
-        setError("❌ DO NOT CROSS LINES!!!");
+        setError("DO NOT CROSS LINES!!!");
         setFlashRed(true);
         setTimeout(() => {
           setError(null);
