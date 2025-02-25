@@ -9,6 +9,7 @@ export default function KonvaCanvas() {
   const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
   const [lines, setLines] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } }[]>([]);
   const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(null);
+  const [savedStates, setSavedStates] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
 
@@ -73,6 +74,26 @@ export default function KonvaCanvas() {
       return newPoints;
     });
   };
+
+  const saveState = () => {
+    if (lines.length === 0 || freePoint === null) {
+      setError("CANNOT SAVE! NO VALID CONFIG!!");
+      setTimeout(() => setError(null), 1500);
+      return;
+    }
+
+    const GRID_ROWS = 600 / GRID_SIZE;
+
+    const newState = {
+      lines: lines.map(({ start, end }) => ({
+        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
+        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
+      })),
+      freePoint: { x: freePoint.x / GRID_SIZE, y: GRID_ROWS - freePoint.y / GRID_SIZE },
+    };
+    
+    setSavedStates((prevStates) => [...prevStates, newState]);
+  };
   
 
   return (
@@ -82,6 +103,11 @@ export default function KonvaCanvas() {
           {error}
         </div>
       )}
+
+      <button onClick={saveState} style={{ marginBottom: "10px", padding: "8px", cursor: "pointer" }}>
+        Save Configuration
+      </button>
+
       <div
         style={{
           display: "inline-block",
@@ -110,6 +136,18 @@ export default function KonvaCanvas() {
           </Layer>
         </Stage>
       </div>
+
+      <div style={{ marginTop: "20px" }}>
+        <h3>Saved Configurations</h3>
+        <ul>
+          {savedStates.map((state, index) => (
+            <li key={index}>
+              Config {index + 1} → {state.lines.length/2} segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
+            </li>
+          ))}
+        </ul>
+      </div>
+
     </div>
   );
 }
