@@ -87,14 +87,31 @@ export default function KonvaCanvas() {
     }
 
     const GRID_ROWS = 600 / GRID_SIZE;
+    
+    const uniqueLines = Array.from(
+      new Map(
+        lines.map(line => [
+          JSON.stringify({
+            start: { x: line.start.x, y: line.start.y },
+            end: { x: line.end.x, y: line.end.y },
+          }),
+          line,
+        ])
+      ).values()
+    );
 
     const newState = {
-      lines: lines.map(({ start, end }) => ({
+      segmentCount: savedStates.length === 0 ? lines.length : savedStates[savedStates.length - 1].segmentCount,
+
+      lines: uniqueLines.map(({ start, end }) => ({
         start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
         end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
       })),
       freePoint: { x: freePoint.x / GRID_SIZE, y: GRID_ROWS - freePoint.y / GRID_SIZE },
     };
+
+    console.log("🔹 Saved Matching", savedStates.length + 1);
+    console.table(newState.lines);
     
     setSavedStates((prevStates) => [...prevStates, newState]);
     setLocked(true);
@@ -195,7 +212,7 @@ export default function KonvaCanvas() {
         <ul>
           {savedStates.map((state, index) => (
             <li key={index}>
-              Matching {index + 1} → {state.lines.length/2} segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
+              Matching {index + 1} → {state.segmentCount/2} line segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
             </li>
           ))}
         </ul>
