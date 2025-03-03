@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 
@@ -25,6 +26,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
+  const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -42,21 +44,107 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFlashRed(false);
     },
     generateRandomPoints: (numPoints: number) => {
-      // Implementation for random point generation
-      const newPoints = [];
-      const gridWidth = 800 / GRID_SIZE;
-      const gridHeight = 600 / GRID_SIZE;
+      // Clear existing points and lines
+      setPoints([]);
+      setLines([]);
+      setFreePoint(null);
+      setLocked(false);
+      setFreedPoints([]);
+      setError(null);
       
-      for (let i = 0; i < numPoints; i++) {
+      // Implementation for random point generation with no crossing segments and no collinear points
+      const gridWidth = Math.floor(800 / GRID_SIZE);
+      const gridHeight = Math.floor(600 / GRID_SIZE);
+      const newPoints: { x: number; y: number }[] = [];
+      
+      // Improved helper function to check if three points are collinear
+      const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
+        // Calculate the area of the triangle formed by the three points
+        // If area is zero, points are collinear
+        const area = Math.abs(
+          (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
+        );
+        
+        // Use a more strict epsilon for better collinearity detection
+        return Math.abs(area) < 0.0001;
+      };
+      
+      // Helper function to check if a new point would create collinearity with ANY existing points
+      const wouldCreateCollinearity = (newPoint: { x: number; y: number }) => {
+        // Need at least 2 existing points to check for collinearity
+        if (newPoints.length < 2) return false;
+        
+        // Check all possible triplets of points (two existing points + the new point)
+        for (let i = 0; i < newPoints.length; i++) {
+          for (let j = i + 1; j < newPoints.length; j++) {
+            if (areCollinear(newPoints[i], newPoints[j], newPoint)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      
+      // Helper function to check if a new segment would cross any existing segments
+      const wouldCrossExistingSegments = (start: { x: number; y: number }, end: { x: number; y: number }, existingLines: any[]) => {
+        const newSegment = { start, end };
+        return existingLines.some(line => doesIntersect(line, newSegment));
+      };
+      
+      // Generate points one by one
+      const maxAttempts = 2000; // Increased to allow more attempts for finding valid points
+      let attempts = 0;
+      let totalAttempts = 0;
+      
+      while (newPoints.length < numPoints && totalAttempts < maxAttempts * numPoints) {
+        totalAttempts++;
+        attempts++;
+        
+        // Generate a random point on the grid
         const x = Math.floor(Math.random() * (gridWidth - 1) + 1) * GRID_SIZE;
         const y = Math.floor(Math.random() * (gridHeight - 1) + 1) * GRID_SIZE;
-        newPoints.push({ x, y });
+        const newPoint = { x, y };
+        
+        // Check if this point already exists
+        const pointExists = newPoints.some(p => p.x === x && p.y === y);
+        if (pointExists) continue;
+        
+        // Check if this point would create collinearity with ANY existing points
+        if (wouldCreateCollinearity(newPoint)) continue;
+        
+        // If we're adding an even-indexed point (other than the first point),
+        // we need to check if the segment it forms would cross any existing segments
+        if (newPoints.length > 0 && newPoints.length % 2 === 1) {
+          const previousPoint = newPoints[newPoints.length - 1];
+          const existingLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
+          
+          // Create existing lines from pairs of points
+          for (let i = 0; i < Math.floor((newPoints.length - 1) / 2); i++) {
+            existingLines.push({
+              start: newPoints[i * 2],
+              end: newPoints[i * 2 + 1]
+            });
+          }
+          
+          if (wouldCrossExistingSegments(previousPoint, newPoint, existingLines)) {
+            continue;
+          }
+        }
+        
+        // If we reach here, the point is valid
+        newPoints.push(newPoint);
+        attempts = 0; // Reset attempts counter after successful addition
+      }
+      
+      // If we couldn't generate enough points, try with fewer points
+      if (newPoints.length < numPoints) {
+        console.warn(`Could only generate ${newPoints.length} points without collinearity or crossing segments`);
       }
       
       setPoints(newPoints);
       
       // If odd number of points, set the last one as free point
-      if (numPoints % 2 === 1 && newPoints.length > 0) {
+      if (newPoints.length % 2 === 1 && newPoints.length > 0) {
         setFreePoint(newPoints[newPoints.length - 1]);
       }
       
@@ -106,6 +194,30 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     return false;
   };
 
+  // Helper function to check if three points are collinear
+  const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
+    // Calculate the area of the triangle formed by the three points
+    // If area is zero, points are collinear
+    const area = Math.abs(
+      (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
+    );
+    return Math.abs(area) < 0.0001; // Using a small epsilon for floating point comparison
+  };
+
+  // Check if adding a new point would create collinearity with any existing points
+  const wouldCreateCollinearity = (newPoint: { x: number; y: number }, existingPoints: { x: number; y: number }[]) => {
+    if (existingPoints.length < 2) return false;
+    
+    for (let i = 0; i < existingPoints.length; i++) {
+      for (let j = i + 1; j < existingPoints.length; j++) {
+        if (areCollinear(existingPoints[i], existingPoints[j], newPoint)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const handleCanvasClick = (e: any) => {
     if (locked) return;
 
@@ -114,6 +226,29 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     if (!pointerPos) return;
   
     const snappedPos = snapToGrid(pointerPos.x, pointerPos.y);
+    
+    // Check if this point already exists
+    const pointExists = points.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
+    if (pointExists) {
+      setError("Point already exists!");
+      setFlashRed(true);
+      setTimeout(() => {
+        setError(null);
+        setFlashRed(false);
+      }, 1500);
+      return;
+    }
+    
+    // Check for collinearity with existing points
+    if (wouldCreateCollinearity(snappedPos, points)) {
+      setError("Cannot place collinear points!");
+      setFlashRed(true);
+      setTimeout(() => {
+        setError(null);
+        setFlashRed(false);
+      }, 1500);
+      return;
+    }
   
     setPoints((prevPoints) => {
       const newPoints = [...prevPoints, snappedPos];
@@ -188,10 +323,19 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
     const removedLine = lines[index];
     setLines(lines.filter((_, i) => i !== index));
-
     
     setFreedPoints([removedLine.start, removedLine.end]);
     setError(null);
+  };
+
+  const handleLineHover = (index: number) => {
+    if (locked) {
+      setHoveredLineIndex(index);
+    }
+  };
+
+  const handleLineLeave = () => {
+    setHoveredLineIndex(null);
   };
 
   const handleFlip = (e: any) => {
@@ -234,12 +378,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
-      {error && (
-        <div style={{ color: "red", fontSize: "18px", fontWeight: "bold", marginBottom: "10px" }}>
-          {error}
-        </div>
-      )}
-
       <button onClick={saveState} style={{ marginBottom: "10px", padding: "8px", cursor: "pointer" }}>
         Save Configuration
       </button>
@@ -253,6 +391,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       >
         <Stage width={800} height={600} onClick={locked ? handleFlip : handleCanvasClick} style={{ backgroundColor: "#f9f9f9" }}>
           <Layer>
+            {/* Grid lines */}
             {[...Array(800 / GRID_SIZE)].map((_, i) => (
               <Line key={i} points={[i * GRID_SIZE, 0, i * GRID_SIZE, 600]} stroke="#ddd" />
             ))}
@@ -260,21 +399,51 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
               <Line key={i} points={[0, i * GRID_SIZE, 800, i * GRID_SIZE]} stroke="#ddd" />
             ))}
 
+            {/* Render lines with both visible thin line and invisible thick hitbox */}
             {lines.map((line, i) => (
-              <Line key={i} points={[line.start.x, line.start.y, line.end.x, line.end.y]} stroke="black" strokeWidth={2} onClick={() => handleLineClick(i)} />
+              <React.Fragment key={i}>
+                {/* Invisible thick line for better hit detection */}
+                <Line 
+                  points={[line.start.x, line.start.y, line.end.x, line.end.y]} 
+                  stroke="rgba(0,0,0,0)" 
+                  strokeWidth={15} 
+                  onClick={() => handleLineClick(i)}
+                  onMouseEnter={() => handleLineHover(i)}
+                  onMouseLeave={handleLineLeave}
+                />
+                {/* Visible thin line */}
+                <Line 
+                  points={[line.start.x, line.start.y, line.end.x, line.end.y]} 
+                  stroke={hoveredLineIndex === i && locked ? "#ff6b6b" : "black"} 
+                  strokeWidth={hoveredLineIndex === i && locked ? 3 : 2} 
+                  listening={false} // This line doesn't handle events
+                />
+              </React.Fragment>
             ))}
 
+            {/* Render points */}
             {points.map((p, i) => (
               <Circle key={i} x={p.x} y={p.y} radius={5} fill="blue" />
             ))}
 
+            {/* Render free point */}
             {freePoint && <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />}
+            
+            {/* Highlight freed points */}
+            {freedPoints.map((p, i) => (
+              <Circle key={i} x={p.x} y={p.y} radius={7} fill="green" stroke="black" strokeWidth={1} />
+            ))}
           </Layer>
         </Stage>
       </div>
 
       <div style={{ marginTop: "20px" }}>
         <h3>Saved Configurations</h3>
+        {error && (
+        <div style={{ color: "red", fontSize: "18px", fontWeight: "bold", marginBottom: "10px" }}>
+          {error}
+        </div>
+      )}
         <ul>
           {savedStates.map((state, index) => (
             <li key={index}>
