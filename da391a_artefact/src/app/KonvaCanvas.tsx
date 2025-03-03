@@ -1,11 +1,22 @@
 "use client";
 
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 
 const GRID_SIZE = 50;
 
-export default function KonvaCanvas() {
+// Define the ref interface
+export interface KonvaCanvasRef {
+  getPoints: () => { x: number; y: number }[];
+  getLines: () => { start: { x: number; y: number }; end: { x: number; y: number } }[];
+  getFreePoint: () => { x: number; y: number } | null;
+  getSavedStates: () => any[];
+  clearCanvas: () => void;
+  generateRandomPoints: (numPoints: number) => void;
+  loadState: (stateIndex: number) => void;
+}
+
+const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
   const [lines, setLines] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } }[]>([]);
   const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(null);
@@ -14,6 +25,61 @@ export default function KonvaCanvas() {
   const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
+
+  // Expose methods and data to parent component via ref
+  useImperativeHandle(ref, () => ({
+    getPoints: () => points,
+    getLines: () => lines,
+    getFreePoint: () => freePoint,
+    getSavedStates: () => savedStates,
+    clearCanvas: () => {
+      setPoints([]);
+      setLines([]);
+      setFreePoint(null);
+      setLocked(false);
+      setFreedPoints([]);
+      setError(null);
+      setFlashRed(false);
+    },
+    generateRandomPoints: (numPoints: number) => {
+      // Implementation for random point generation
+      const newPoints = [];
+      const gridWidth = 800 / GRID_SIZE;
+      const gridHeight = 600 / GRID_SIZE;
+      
+      for (let i = 0; i < numPoints; i++) {
+        const x = Math.floor(Math.random() * (gridWidth - 1) + 1) * GRID_SIZE;
+        const y = Math.floor(Math.random() * (gridHeight - 1) + 1) * GRID_SIZE;
+        newPoints.push({ x, y });
+      }
+      
+      setPoints(newPoints);
+      
+      // If odd number of points, set the last one as free point
+      if (numPoints % 2 === 1 && newPoints.length > 0) {
+        setFreePoint(newPoints[newPoints.length - 1]);
+      }
+      
+      // Create lines for pairs of points
+      const newLines = [];
+      for (let i = 0; i < Math.floor(newPoints.length / 2); i++) {
+        newLines.push({
+          start: newPoints[i * 2],
+          end: newPoints[i * 2 + 1]
+        });
+      }
+      
+      setLines(newLines);
+    },
+    loadState: (stateIndex: number) => {
+      if (stateIndex >= 0 && stateIndex < savedStates.length) {
+        const state = savedStates[stateIndex];
+        // Implementation for loading a saved state
+        console.log("Loading state:", state);
+        // You would implement the actual loading logic here
+      }
+    }
+  }));
 
   const snapToGrid = (x: number, y: number) => ({
     x: Math.round(x / GRID_SIZE) * GRID_SIZE,
@@ -217,7 +283,10 @@ export default function KonvaCanvas() {
           ))}
         </ul>
       </div>
-
     </div>
   );
-}
+});
+
+KonvaCanvas.displayName = 'KonvaCanvas';
+
+export default KonvaCanvas;

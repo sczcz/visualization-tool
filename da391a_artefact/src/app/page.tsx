@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Header from "./components/Header";
+import Sidebar from "./components/SideBar";
+import { KonvaCanvasRef } from "./KonvaCanvas"; // Import the ref type
 
+// Use dynamic import with ssr: false
 const KonvaCanvas = dynamic(() => import("./KonvaCanvas"), { ssr: false });
 
 export default function Home() {
@@ -13,39 +16,106 @@ export default function Home() {
   // Define state for history (for undo functionality)
   const [history, setHistory] = useState<any[]>([{}]);
   
+  // Create a ref for the KonvaCanvas
+  const canvasRef = useRef<KonvaCanvasRef>(null);
+  
+  // State for sidebar statistics
+  const [pointCount, setPointCount] = useState(0);
+  const [segmentCount, setSegmentCount] = useState(0);
+  const [avgDistance, setAvgDistance] = useState(0);
+  const [freePointCoords, setFreePointCoords] = useState<{ x: number, y: number } | null>(null);
+  const [savedStates, setSavedStates] = useState<any[]>([]);
+  
+  // Update statistics from canvas data
+  const updateStatistics = useCallback(() => {
+    if (!canvasRef.current) return;
+    
+    const points = canvasRef.current.getPoints();
+    const lines = canvasRef.current.getLines();
+    const freePoint = canvasRef.current.getFreePoint();
+    const states = canvasRef.current.getSavedStates();
+    
+    setPointCount(points.length);
+    setSegmentCount(lines.length);
+    setFreePointCoords(freePoint);
+    setSavedStates(states);
+    
+    // Calculate average distance
+    if (lines.length > 0) {
+      const totalDistance = lines.reduce((acc, line) => {
+        const dx = line.start.x - line.end.x;
+        const dy = line.start.y - line.end.y;
+        return acc + Math.sqrt(dx * dx + dy * dy);
+      }, 0);
+      
+      setAvgDistance(totalDistance / lines.length);
+    } else {
+      setAvgDistance(0);
+    }
+  }, []);
+  
+  // Set up interval to update statistics
+  useEffect(() => {
+    const interval = setInterval(updateStatistics, 500);
+    return () => clearInterval(interval);
+  }, [updateStatistics]);
+  
   // Define handlers for the Header component
   const handleModeChange = useCallback((newMode: 'manual' | 'auto' | 'target') => {
     setMode(newMode);
   }, []);
   
   const handleClear = useCallback(() => {
-    // Add current state to history before clearing
+    if (canvasRef.current) {
+      canvasRef.current.clearCanvas();
+      updateStatistics();
+    }
+    
+    // Add current state to history
     setHistory(prev => [...prev, {}]);
-    // Implement your clear logic here
     console.log("Clear canvas");
-  }, []);
+  }, [updateStatistics]);
   
   const handleUndo = useCallback(() => {
     if (history.length > 1) {
       // Remove the last item from history
       setHistory(prev => prev.slice(0, -1));
-      // Implement your undo logic here
       console.log("Undo last action");
     }
   }, [history]);
   
   const handleSave = useCallback(() => {
-    // Implement your save logic here
     console.log("Save canvas");
   }, []);
   
   const handleLoadCanonical = useCallback(() => {
-    // Implement your load canonical logic here
     console.log("Load canonical");
   }, []);
+  
+  // Define handlers for the Sidebar component
+  const handleRandomGenerate = useCallback((numPoints: number) => {
+    if (canvasRef.current) {
+      canvasRef.current.generateRandomPoints(numPoints);
+      updateStatistics();
+    }
+    
+    console.log(`Generate random matching with ${numPoints} points`);
+    
+    // Add to history
+    setHistory(prev => [...prev, { numPoints }]);
+  }, [updateStatistics]);
+  
+  const handleHistorySelect = useCallback((historyIndex: number) => {
+    if (canvasRef.current) {
+      canvasRef.current.loadState(historyIndex);
+      updateStatistics();
+    }
+    
+    console.log(`Select history at index ${historyIndex}`);
+  }, [updateStatistics]);
 
   return (
-    <div className="bg-white text-black p-4 w-full">
+    <div className="bg-white text-black p-4 w-full flex flex-col h-screen">
       <Header
         activeMode={mode}
         onModeChange={handleModeChange}
@@ -55,8 +125,23 @@ export default function Home() {
         onLoadCanonical={handleLoadCanonical}
         canUndo={history.length > 1}
       />
-      <h1>Artefact draft</h1>
-      <KonvaCanvas />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1">
+          <KonvaCanvas ref={canvasRef} />
+        </div>
+        <div className="w-64">
+          <Sidebar
+            mode={mode}
+            onRandomGenerate={handleRandomGenerate}
+            onHistorySelect={handleHistorySelect}
+            pointCount={pointCount}
+            segmentCount={segmentCount}
+            avgDistance={avgDistance}
+            freePointCoords={freePointCoords}
+            savedStates={savedStates}
+          />
+        </div>
+      </div>
     </div>
   );
 }
