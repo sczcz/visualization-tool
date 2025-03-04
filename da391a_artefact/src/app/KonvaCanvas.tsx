@@ -59,8 +59,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       
       // Improved helper function to check if three points are collinear
       const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
-        // Calculate the area of the triangle formed by the three points
-        // If area is zero, points are collinear
+        // Calculate the area of the triangle formed by the three points =If area is zero, points are collinear
+    
         const area = Math.abs(
           (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
         );
@@ -159,14 +159,75 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       
       setLines(newLines);
     },
-    loadState: (stateIndex: number) => {
-      if (stateIndex >= 0 && stateIndex < savedStates.length) {
-        const state = savedStates[stateIndex];
-        // Implementation for loading a saved state
-        console.log("Loading state:", state);
-        // You would implement the actual loading logic here
+    // Inside the useImperativeHandle hook in KonvaCanvas.tsx, update the loadState method:
+
+loadState: (stateIndex: number) => {
+  if (stateIndex >= 0 && stateIndex < savedStates.length) {
+    const state = savedStates[stateIndex];
+    
+    // Clear current canvas
+    setPoints([]);
+    setLines([]);
+    setFreePoint(null);
+    setLocked(false);
+    setFreedPoints([]);
+    setError(null);
+    setFlashRed(false);
+    
+    // Convert the saved state coordinates back to canvas coordinates
+    const GRID_ROWS = 600 / GRID_SIZE;
+    
+    // Create points from the lines in the saved state
+    const newPoints: { x: number; y: number }[] = [];
+    const newLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
+    
+    state.lines.forEach((line: any) => {
+      // Convert from grid coordinates back to canvas coordinates
+      const startPoint = {
+        x: line.start.x * GRID_SIZE,
+        y: (GRID_ROWS - line.start.y) * GRID_SIZE
+      };
+      
+      const endPoint = {
+        x: line.end.x * GRID_SIZE,
+        y: (GRID_ROWS - line.end.y) * GRID_SIZE
+      };
+      
+      // Add points if they don't already exist
+      if (!newPoints.some(p => p.x === startPoint.x && p.y === startPoint.y)) {
+        newPoints.push(startPoint);
       }
+      
+      if (!newPoints.some(p => p.x === endPoint.x && p.y === endPoint.y)) {
+        newPoints.push(endPoint);
+      }
+      
+      // Add the line
+      newLines.push({
+        start: startPoint,
+        end: endPoint
+      });
+    });
+    
+    // Add the free point
+    const freePointCanvas = {
+      x: state.freePoint.x * GRID_SIZE,
+      y: (GRID_ROWS - state.freePoint.y) * GRID_SIZE
+    };
+    
+    if (!newPoints.some(p => p.x === freePointCanvas.x && p.y === freePointCanvas.y)) {
+      newPoints.push(freePointCanvas);
     }
+    
+    // Set the state
+    setPoints(newPoints);
+    setLines(newLines);
+    setFreePoint(freePointCanvas);
+    setLocked(true); // Set to locked state since we're loading a saved configuration
+    
+    console.log(`Loaded state ${stateIndex + 1}`);
+  }
+}
   }));
 
   const snapToGrid = (x: number, y: number) => ({
@@ -438,19 +499,21 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       </div>
 
       <div style={{ marginTop: "20px" }}>
-        <h3>Saved Configurations</h3>
+        
         {error && (
         <div style={{ color: "red", fontSize: "18px", fontWeight: "bold", marginBottom: "10px" }}>
           {error}
         </div>
       )}
-        <ul>
+
+      {/* <h3>Saved Configurations</h3> */}
+        {/* <ul>
           {savedStates.map((state, index) => (
             <li key={index}>
               Matching {index + 1} → {state.segmentCount/2} line segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
             </li>
           ))}
-        </ul>
+        </ul> */}
       </div>
     </div>
   );

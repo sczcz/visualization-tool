@@ -108,10 +108,14 @@ export default function Home() {
   const handleHistorySelect = useCallback((historyIndex: number) => {
     if (canvasRef.current) {
       canvasRef.current.loadState(historyIndex);
-      updateStatistics();
+      
+      
+      setTimeout(() => {
+        updateStatistics();
+      }, 50);
     }
     
-    console.log(`Select history at index ${historyIndex}`);
+    console.log(`Loaded history at index ${historyIndex}`);
   }, [updateStatistics]);
 
   return (
