@@ -28,6 +28,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [flashRed, setFlashRed] = useState(false);
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [validFlipPoints, setValidFlipPoints] = useState<{ x: number; y: number }[]>([]);
+  const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -44,6 +45,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setError(null);
       setFlashRed(false);
       setValidFlipPoints([]);
+      setPendingPoint(null);
     },
     generateRandomPoints: (numPoints: number) => {
       // Clear existing points and lines
@@ -54,6 +56,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreedPoints([]);
       setError(null);
       setValidFlipPoints([]);
+      setPendingPoint(null);
       
       // Implementation for random point generation with no crossing segments and no collinear points
       const gridWidth = Math.floor(800 / GRID_SIZE);
@@ -175,6 +178,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         setError(null);
         setFlashRed(false);
         setValidFlipPoints([]);
+        setPendingPoint(null);
         
         // Convert the saved state coordinates back to canvas coordinates
         const GRID_ROWS = 600 / GRID_SIZE;
@@ -324,21 +328,16 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
   
-    setPoints((prevPoints) => {
-      const newPoints = [...prevPoints, snappedPos];
-  
-      if (newPoints.length % 2 === 1) {
-        setFreePoint(snappedPos);
-        return newPoints;
-      }
-  
+    // If we have a pending point, create a segment
+    if (pendingPoint) {
       const newSegment = {
-        start: newPoints[newPoints.length - 2],
-        end: newPoints[newPoints.length - 1],
+        start: pendingPoint,
+        end: snappedPos
       };
-  
+      
+      // Check for intersections with existing lines
       const hasIntersection = lines.some((existingLine) => doesIntersect(existingLine, newSegment));
-  
+      
       if (hasIntersection) {
         setError("DO NOT CROSS LINES!!!");
         setFlashRed(true);
@@ -346,12 +345,32 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           setError(null);
           setFlashRed(false);
         }, 1500);
-        return prevPoints;
+        return;
       }
-  
-      setLines((prevLines) => [...prevLines, newSegment]);
-      return newPoints;
-    });
+      
+      // Add the new point and segment
+      setPoints(prevPoints => [...prevPoints, snappedPos]);
+      setLines(prevLines => [...prevLines, newSegment]);
+      setPendingPoint(null);
+      
+      // If we have an odd number of points, set the last one as free point
+      if ((points.length + 1) % 2 === 1) {
+        setFreePoint(snappedPos);
+      } else {
+        setFreePoint(null);
+      }
+    } else {
+      // This is the first point of a potential segment
+      setPoints(prevPoints => [...prevPoints, snappedPos]);
+      setPendingPoint(snappedPos);
+      
+      // If we have an odd number of points, set the last one as free point
+      if ((points.length + 1) % 2 === 1) {
+        setFreePoint(snappedPos);
+      } else {
+        setFreePoint(null);
+      }
+    }
   };
 
   const saveState = () => {
@@ -414,7 +433,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   };
 
   const handleLineClick = (index: number) => {
-    if (!locked) return;
+    if (!locked || freedPoints.length > 0) return;
 
     const removedLine = lines[index];
     
@@ -442,10 +461,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
     
     // If we get here, at least one valid flip is possible
-    setLines(lines.filter((_, i) => i !== index));
+    // Create a new array without the removed line
+    const newLines = lines.filter((_, i) => i !== index);
+    setLines(newLines);
     setFreedPoints([removedLine.start, removedLine.end]);
     setValidFlipPoints(validPoints);
     setError(null);
+    
+    console.log(`Removed line at index ${index}, freed points:`, removedLine.start, removedLine.end);
+    console.log(`Valid flip points:`, validPoints);
   };
 
   const handleLineHover = (index: number) => {
@@ -495,10 +519,14 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    setLines([...lines, newSegment]);
+    // Add the new line
+    setLines(prevLines => [...prevLines, newSegment]);
     setFreedPoints([]);
     setFreePoint(newFreePoint);
     setValidFlipPoints([]);
+    
+    console.log(`Added new line from (${snappedPos.x}, ${snappedPos.y}) to (${freePoint.x}, ${freePoint.y})`);
+    console.log(`New free point: (${newFreePoint.x}, ${newFreePoint.y})`);
   };
   
 
@@ -519,15 +547,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           <Layer>
             {/* Grid lines */}
             {[...Array(800 / GRID_SIZE)].map((_, i) => (
-              <Line key={i} points={[i * GRID_SIZE, 0, i * GRID_SIZE, 600]} stroke="#ddd" />
+              <Line key={`grid-v-${i}`} points={[i * GRID_SIZE, 0, i * GRID_SIZE, 600]} stroke="#ddd" />
             ))}
             {[...Array(600 / GRID_SIZE)].map((_, i) => (
-              <Line key={i} points={[0, i * GRID_SIZE, 800, i * GRID_SIZE]} stroke="#ddd" />
+              <Line key={`grid-h-${i}`} points={[0, i * GRID_SIZE, 800, i * GRID_SIZE]} stroke="#ddd" />
             ))}
 
             {/* Render lines with both visible thin line and invisible thick hitbox */}
             {lines.map((line, i) => (
-              <React.Fragment key={i}>
+              <React.Fragment key={`line-${i}`}>
                 {/* Invisible thick line for better hit detection */}
                 <Line 
                   points={[line.start.x, line.start.y, line.end.x, line.end.y]} 
@@ -549,18 +577,21 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
             {/* Render points */}
             {points.map((p, i) => (
-              <Circle key={i} x={p.x} y={p.y} radius={5} fill="blue" />
+              <Circle key={`point-${i}`} x={p.x} y={p.y} radius={5} fill="blue" />
             ))}
 
             {/* Render free point */}
             {freePoint && <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />}
+            
+            {/* Highlight pending point */}
+            {pendingPoint && <Circle x={pendingPoint.x} y={pendingPoint.y} radius={6} fill="purple" stroke="black" strokeWidth={1} />}
             
             {/* Highlight freed points with different colors based on validity */}
             {freedPoints.map((p, i) => {
               const isValidFlip = validFlipPoints.some(vp => vp.x === p.x && vp.y === p.y);
               return (
                 <Circle 
-                  key={i} 
+                  key={`freed-${i}`} 
                   x={p.x} 
                   y={p.y} 
                   radius={7} 
