@@ -27,6 +27,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
+  const [validFlipPoints, setValidFlipPoints] = useState<{ x: number; y: number }[]>([]);
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -42,6 +43,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreedPoints([]);
       setError(null);
       setFlashRed(false);
+      setValidFlipPoints([]);
     },
     generateRandomPoints: (numPoints: number) => {
       // Clear existing points and lines
@@ -51,6 +53,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setLocked(false);
       setFreedPoints([]);
       setError(null);
+      setValidFlipPoints([]);
       
       // Implementation for random point generation with no crossing segments and no collinear points
       const gridWidth = Math.floor(800 / GRID_SIZE);
@@ -59,8 +62,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       
       // Improved helper function to check if three points are collinear
       const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
-        // Calculate the area of the triangle formed by the three points =If area is zero, points are collinear
-    
+        // Calculate the area of the triangle formed by the three points
+        // If area is zero, points are collinear
         const area = Math.abs(
           (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
         );
@@ -159,75 +162,77 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       
       setLines(newLines);
     },
-    // Inside the useImperativeHandle hook in KonvaCanvas.tsx, update the loadState method:
-
-loadState: (stateIndex: number) => {
-  if (stateIndex >= 0 && stateIndex < savedStates.length) {
-    const state = savedStates[stateIndex];
-    
-    // Clear current canvas
-    setPoints([]);
-    setLines([]);
-    setFreePoint(null);
-    setLocked(false);
-    setFreedPoints([]);
-    setError(null);
-    setFlashRed(false);
-    
-    // Convert the saved state coordinates back to canvas coordinates
-    const GRID_ROWS = 600 / GRID_SIZE;
-    
-    // Create points from the lines in the saved state
-    const newPoints: { x: number; y: number }[] = [];
-    const newLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
-    
-    state.lines.forEach((line: any) => {
-      // Convert from grid coordinates back to canvas coordinates
-      const startPoint = {
-        x: line.start.x * GRID_SIZE,
-        y: (GRID_ROWS - line.start.y) * GRID_SIZE
-      };
-      
-      const endPoint = {
-        x: line.end.x * GRID_SIZE,
-        y: (GRID_ROWS - line.end.y) * GRID_SIZE
-      };
-      
-      // Add points if they don't already exist
-      if (!newPoints.some(p => p.x === startPoint.x && p.y === startPoint.y)) {
-        newPoints.push(startPoint);
+    loadState: (stateIndex: number) => {
+      if (stateIndex >= 0 && stateIndex < savedStates.length) {
+        const state = savedStates[stateIndex];
+        
+        // Clear current canvas
+        setPoints([]);
+        setLines([]);
+        setFreePoint(null);
+        setLocked(false);
+        setFreedPoints([]);
+        setError(null);
+        setFlashRed(false);
+        setValidFlipPoints([]);
+        
+        // Convert the saved state coordinates back to canvas coordinates
+        const GRID_ROWS = 600 / GRID_SIZE;
+        
+        // Create points from the lines in the saved state
+        const newPoints: { x: number; y: number }[] = [];
+        const newLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
+        
+        state.lines.forEach((line: any) => {
+          // Convert from grid coordinates back to canvas coordinates
+          const startPoint = {
+            x: line.start.x * GRID_SIZE,
+            y: (GRID_ROWS - line.start.y) * GRID_SIZE
+          };
+          
+          const endPoint = {
+            x: line.end.x * GRID_SIZE,
+            y: (GRID_ROWS - line.end.y) * GRID_SIZE
+          };
+          
+          // Add points if they don't already exist
+          if (!newPoints.some(p => p.x === startPoint.x && p.y === startPoint.y)) {
+            newPoints.push(startPoint);
+          }
+          
+          if (!newPoints.some(p => p.x === endPoint.x && p.y === endPoint.y)) {
+            newPoints.push(endPoint);
+          }
+          
+          // Add the line
+          newLines.push({
+            start: startPoint,
+            end: endPoint
+          });
+        });
+        
+        // Add the free point if it exists
+        if (state.freePoint) {
+          const freePointCanvas = {
+            x: state.freePoint.x * GRID_SIZE,
+            y: (GRID_ROWS - state.freePoint.y) * GRID_SIZE
+          };
+          
+          if (!newPoints.some(p => p.x === freePointCanvas.x && p.y === freePointCanvas.y)) {
+            newPoints.push(freePointCanvas);
+          }
+          
+          setFreePoint(freePointCanvas);
+        }
+        
+        // Set the state
+        setPoints(newPoints);
+        setLines(newLines);
+        setLocked(true); // Set to locked state since we're loading a saved configuration
+        
+        console.log(`Loaded state ${stateIndex + 1}`);
       }
-      
-      if (!newPoints.some(p => p.x === endPoint.x && p.y === endPoint.y)) {
-        newPoints.push(endPoint);
-      }
-      
-      // Add the line
-      newLines.push({
-        start: startPoint,
-        end: endPoint
-      });
-    });
-    
-    // Add the free point
-    const freePointCanvas = {
-      x: state.freePoint.x * GRID_SIZE,
-      y: (GRID_ROWS - state.freePoint.y) * GRID_SIZE
-    };
-    
-    if (!newPoints.some(p => p.x === freePointCanvas.x && p.y === freePointCanvas.y)) {
-      newPoints.push(freePointCanvas);
     }
-    
-    // Set the state
-    setPoints(newPoints);
-    setLines(newLines);
-    setFreePoint(freePointCanvas);
-    setLocked(true); // Set to locked state since we're loading a saved configuration
-    
-    console.log(`Loaded state ${stateIndex + 1}`);
-  }
-}
   }));
 
   const snapToGrid = (x: number, y: number) => ({
@@ -239,6 +244,14 @@ loadState: (stateIndex: number) => {
     const { start: A, end: B } = line1;
     const { start: C, end: D } = line2;
   
+    // Check if the lines share an endpoint
+    if ((A.x === C.x && A.y === C.y) || 
+        (A.x === D.x && A.y === D.y) || 
+        (B.x === C.x && B.y === C.y) || 
+        (B.x === D.x && B.y === D.y)) {
+      return false; // Lines that share an endpoint don't "intersect"
+    }
+    
     const orientation = (p: any, q: any, r: any) => {
       const val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
       if (val === 0) return 0; 
@@ -363,8 +376,7 @@ loadState: (stateIndex: number) => {
     );
 
     const newState = {
-      segmentCount: savedStates.length === 0 ? lines.length : savedStates[savedStates.length - 1].segmentCount,
-
+      segmentCount: uniqueLines.length * 2,
       lines: uniqueLines.map(({ start, end }) => ({
         start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
         end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
@@ -379,13 +391,60 @@ loadState: (stateIndex: number) => {
     setLocked(true);
   };
 
+  // Check if a potential flip would be valid
+  const isValidFlip = (freedPoint: { x: number; y: number }, currentFreePoint: { x: number; y: number } | null) => {
+    if (!currentFreePoint) return false;
+    
+    // Create the potential new segment
+    const newSegment = {
+      start: freedPoint,
+      end: currentFreePoint
+    };
+    
+    // Filter out any lines that contain the freed points (since they'll be removed)
+    const otherLines = lines.filter(line => 
+      !freedPoints.some(fp => 
+        (line.start.x === fp.x && line.start.y === fp.y) || 
+        (line.end.x === fp.x && line.end.y === fp.y)
+      )
+    );
+    
+    // Check if the potential new segment would intersect with any existing lines
+    return !otherLines.some(line => doesIntersect(line, newSegment));
+  };
+
   const handleLineClick = (index: number) => {
     if (!locked) return;
 
     const removedLine = lines[index];
-    setLines(lines.filter((_, i) => i !== index));
     
+    // Check which flips would be valid
+    const validPoints: { x: number; y: number }[] = [];
+    
+    // Check if connecting start point to free point would be valid
+    if (freePoint && isValidFlip(removedLine.start, freePoint)) {
+      validPoints.push(removedLine.start);
+    }
+    
+    // Check if connecting end point to free point would be valid
+    if (freePoint && isValidFlip(removedLine.end, freePoint)) {
+      validPoints.push(removedLine.end);
+    }
+    
+    if (validPoints.length === 0) {
+      setError("Cannot remove this line - no valid flip possible!");
+      setFlashRed(true);
+      setTimeout(() => {
+        setError(null);
+        setFlashRed(false);
+      }, 1500);
+      return;
+    }
+    
+    // If we get here, at least one valid flip is possible
+    setLines(lines.filter((_, i) => i !== index));
     setFreedPoints([removedLine.start, removedLine.end]);
+    setValidFlipPoints(validPoints);
     setError(null);
   };
 
@@ -400,7 +459,7 @@ loadState: (stateIndex: number) => {
   };
 
   const handleFlip = (e: any) => {
-    if (!locked || freedPoints.length !== 2) return;
+    if (!locked || freedPoints.length !== 2 || !freePoint) return;
 
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
@@ -408,32 +467,38 @@ loadState: (stateIndex: number) => {
 
     const snappedPos = snapToGrid(pointerPos.x, pointerPos.y);
 
-    if (
-      !(
-        (snappedPos.x === freedPoints[0].x && snappedPos.y === freedPoints[0].y) ||
-        (snappedPos.x === freedPoints[1].x && snappedPos.y === freedPoints[1].y)
-      )
-    ) {
-      setError("You must connect a freed point to the old free point!");
+    // Check if the clicked point is one of the freed points
+    const isFreedPoint = freedPoints.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
+    
+    if (!isFreedPoint) {
+      setError("You must click on one of the highlighted points to connect it to the free point!");
       setTimeout(() => setError(null), 1500);
       return;
     }
 
-    const newSegment = { start: snappedPos, end: freePoint! };
-
-    const hasIntersection = lines.some((existingLine) => doesIntersect(existingLine, newSegment));
-    if (hasIntersection) {
-      setError("DO NOT CROSS LINES!!!");
+    // Check if this is a valid flip point
+    const isValidFlipPoint = validFlipPoints.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
+    
+    if (!isValidFlipPoint) {
+      setError("This connection would cross other lines!");
       setTimeout(() => setError(null), 1500);
       return;
     }
 
-    const newFreePoint =
-    snappedPos.x === freedPoints[0].x && snappedPos.y === freedPoints[0].y ? freedPoints[1] : freedPoints[0];
+    const newSegment = { start: snappedPos, end: freePoint };
+    
+    // The new free point is the other freed point
+    const newFreePoint = freedPoints.find(p => p.x !== snappedPos.x || p.y !== snappedPos.y);
+    
+    if (!newFreePoint) {
+      console.error("Could not find the other freed point");
+      return;
+    }
 
     setLines([...lines, newSegment]);
     setFreedPoints([]);
     setFreePoint(newFreePoint);
+    setValidFlipPoints([]);
   };
   
 
@@ -490,30 +555,31 @@ loadState: (stateIndex: number) => {
             {/* Render free point */}
             {freePoint && <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />}
             
-            {/* Highlight freed points */}
-            {freedPoints.map((p, i) => (
-              <Circle key={i} x={p.x} y={p.y} radius={7} fill="green" stroke="black" strokeWidth={1} />
-            ))}
+            {/* Highlight freed points with different colors based on validity */}
+            {freedPoints.map((p, i) => {
+              const isValidFlip = validFlipPoints.some(vp => vp.x === p.x && vp.y === p.y);
+              return (
+                <Circle 
+                  key={i} 
+                  x={p.x} 
+                  y={p.y} 
+                  radius={7} 
+                  fill={isValidFlip ? "green" : "orange"} 
+                  stroke="black" 
+                  strokeWidth={1} 
+                />
+              );
+            })}
           </Layer>
         </Stage>
       </div>
 
       <div style={{ marginTop: "20px" }}>
-        
         {error && (
-        <div style={{ color: "red", fontSize: "18px", fontWeight: "bold", marginBottom: "10px" }}>
-          {error}
-        </div>
-      )}
-
-      {/* <h3>Saved Configurations</h3> */}
-        {/* <ul>
-          {savedStates.map((state, index) => (
-            <li key={index}>
-              Matching {index + 1} → {state.segmentCount/2} line segments, Free Point at ({state.freePoint.x}, {state.freePoint.y})
-            </li>
-          ))}
-        </ul> */}
+          <div style={{ color: "red", fontSize: "18px", fontWeight: "bold", marginBottom: "10px" }}>
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
