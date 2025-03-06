@@ -35,9 +35,17 @@ export default function Home() {
     const freePoint = canvasRef.current.getFreePoint();
     const states = canvasRef.current.getSavedStates();
     
+
+    
+    
+
     setPointCount(points.length);
     setSegmentCount(lines.length);
-    setFreePointCoords(freePoint);
+    setFreePointCoords(freePoint ? {
+      x: freePoint.x / 50,
+      y: freePoint.y / 50
+
+    } : null);
     setSavedStates(states);
     
     // Calculate average distance
@@ -48,7 +56,7 @@ export default function Home() {
         return acc + Math.sqrt(dx * dx + dy * dy);
       }, 0);
       
-      setAvgDistance(totalDistance / lines.length);
+      setAvgDistance(totalDistance / lines.length / 50);
     } else {
       setAvgDistance(0);
     }
