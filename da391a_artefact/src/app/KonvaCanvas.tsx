@@ -3,6 +3,8 @@
 import React from "react";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { snapToGrid, doesIntersect } from "./utils/MathUtils";
+import { wouldCreateCollinearity, wouldCrossExistingSegments } from "./utils/CanvasUtils";
 
 const GRID_SIZE = 50;
 
@@ -63,40 +65,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       const gridHeight = Math.floor(600 / GRID_SIZE);
       const newPoints: { x: number; y: number }[] = [];
       
-      // Improved helper function to check if three points are collinear
-      const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
-        // Calculate the area of the triangle formed by the three points
-        // If area is zero, points are collinear
-        const area = Math.abs(
-          (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
-        );
-        
-        // Use a more strict epsilon for better collinearity detection
-        return Math.abs(area) < 0.0001;
-      };
-      
-      // Helper function to check if a new point would create collinearity with ANY existing points
-      const wouldCreateCollinearity = (newPoint: { x: number; y: number }) => {
-        // Need at least 2 existing points to check for collinearity
-        if (newPoints.length < 2) return false;
-        
-        // Check all possible triplets of points (two existing points + the new point)
-        for (let i = 0; i < newPoints.length; i++) {
-          for (let j = i + 1; j < newPoints.length; j++) {
-            if (areCollinear(newPoints[i], newPoints[j], newPoint)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      };
-      
-      // Helper function to check if a new segment would cross any existing segments
-      const wouldCrossExistingSegments = (start: { x: number; y: number }, end: { x: number; y: number }, existingLines: any[]) => {
-        const newSegment = { start, end };
-        return existingLines.some(line => doesIntersect(line, newSegment));
-      };
-      
       // Generate points one by one
       const maxAttempts = 2000; // Increased to allow more attempts for finding valid points
       let attempts = 0;
@@ -116,7 +84,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         if (pointExists) continue;
         
         // Check if this point would create collinearity with ANY existing points
-        if (wouldCreateCollinearity(newPoint)) continue;
+        if (wouldCreateCollinearity(newPoint, newPoints)) continue;
         
         // If we're adding an even-indexed point (other than the first point),
         // we need to check if the segment it forms would cross any existing segments
@@ -239,63 +207,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
   }));
 
-  const snapToGrid = (x: number, y: number) => ({
-    x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-    y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-  });
-
-  const doesIntersect = (line1: any, line2: any) => {
-    const { start: A, end: B } = line1;
-    const { start: C, end: D } = line2;
-  
-    // Check if the lines share an endpoint
-    if ((A.x === C.x && A.y === C.y) || 
-        (A.x === D.x && A.y === D.y) || 
-        (B.x === C.x && B.y === C.y) || 
-        (B.x === D.x && B.y === D.y)) {
-      return false; // Lines that share an endpoint don't "intersect"
-    }
-    
-    const orientation = (p: any, q: any, r: any) => {
-      const val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
-      if (val === 0) return 0; 
-      return val > 0 ? 1 : 2;
-    };
-  
-    const o1 = orientation(A, B, C);
-    const o2 = orientation(A, B, D);
-    const o3 = orientation(C, D, A);
-    const o4 = orientation(C, D, B);
-  
-    if (o1 !== o2 && o3 !== o4) return true;
-  
-    return false;
-  };
-
-  // Helper function to check if three points are collinear
-  const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
-    // Calculate the area of the triangle formed by the three points
-    // If area is zero, points are collinear
-    const area = Math.abs(
-      (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
-    );
-    return Math.abs(area) < 0.0001; // Using a small epsilon for floating point comparison
-  };
-
-  // Check if adding a new point would create collinearity with any existing points
-  const wouldCreateCollinearity = (newPoint: { x: number; y: number }, existingPoints: { x: number; y: number }[]) => {
-    if (existingPoints.length < 2) return false;
-    
-    for (let i = 0; i < existingPoints.length; i++) {
-      for (let j = i + 1; j < existingPoints.length; j++) {
-        if (areCollinear(existingPoints[i], existingPoints[j], newPoint)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  };
-
   const handleCanvasClick = (e: any) => {
     if (locked) return;
 
@@ -303,7 +214,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
   
-    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y);
+    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y, GRID_SIZE);
     
     // Check if this point already exists
     const pointExists = points.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
@@ -335,10 +246,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         end: snappedPos
       };
       
-      // Check for intersections with existing lines
-      const hasIntersection = lines.some((existingLine) => doesIntersect(existingLine, newSegment));
-      
-      if (hasIntersection) {
+      if (wouldCrossExistingSegments(pendingPoint, snappedPos, lines)) {
         setError("DO NOT CROSS LINES!!!");
         setFlashRed(true);
         setTimeout(() => {
@@ -489,7 +397,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y);
+    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y, GRID_SIZE);
 
     // Check if the clicked point is one of the freed points
     const isFreedPoint = freedPoints.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
