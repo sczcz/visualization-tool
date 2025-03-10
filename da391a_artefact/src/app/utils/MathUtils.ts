@@ -1,19 +1,19 @@
+import { Point, Segment } from "../types";
+
+
 export const snapToGrid = (x: number, y: number, GRID_SIZE: number) => ({
     x: Math.round(x / GRID_SIZE) * GRID_SIZE,
     y: Math.round(y / GRID_SIZE) * GRID_SIZE,
 });
 
-
-
-export const areCollinear = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
+export const areCollinear = (p1: Point, p2: Point, p3: Point) => {
     const area = Math.abs(
       (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
     );
     return Math.abs(area) < 0.0001;
 };
 
-
-export const doesIntersect = (line1: any, line2: any) => {
+export const doesIntersect = (line1: Segment, line2: Segment) => {
     const { start: A, end: B } = line1;
     const { start: C, end: D } = line2;
   

@@ -1,12 +1,11 @@
 import { areCollinear, doesIntersect } from "./MathUtils";
+import { Point, Segment } from "../types";
 
-export const wouldCreateCollinearity = (newPoint: { x: number; y: number }, existingPointsSet: Set<string>) => {
-  if (existingPointsSet.size < 2) return false;
 
-  const existingPointsArray = Array.from(existingPointsSet, str => {
-      const [x, y] = str.split(",").map(Number);
-      return { x, y };
-  });
+export const wouldCreateCollinearity = (newPoint: Point, existingPointsMap: Map<string, Point>) => {
+  if (existingPointsMap.size < 2) return false;
+
+  const existingPointsArray = Array.from(existingPointsMap.values());
 
   for (let i = 0; i < existingPointsArray.length; i++) {
       for (let j = i + 1; j < existingPointsArray.length; j++) {
@@ -18,9 +17,7 @@ export const wouldCreateCollinearity = (newPoint: { x: number; y: number }, exis
   return false;
 };
 
-
-
-export const wouldCrossExistingSegments = (start: { x: number; y: number }, end: { x: number; y: number }, existingLines: any[]) => {
-    const newSegment = { start, end };
+export const wouldCrossExistingSegments = (start: Point, end: Point, existingLines: Segment[]) => {
+    const newSegment: Segment = { start, end };
     return existingLines.some(line => doesIntersect(line, newSegment));
 };
