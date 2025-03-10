@@ -357,9 +357,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setTimeout(() => setError(null), 1500);
       return;
     }
-
+  
     const GRID_ROWS = 600 / GRID_SIZE;
-
+  
     const uniqueLines = Array.from(
       new Map(
         lines.map((line) => [
@@ -371,7 +371,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         ])
       ).values()
     );
-
+  
     const newState = {
       segmentCount: uniqueLines.length * 2,
       lines: uniqueLines.map(({ start, end }) => ({
@@ -383,12 +383,24 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         y: GRID_ROWS - freePoint.y / GRID_SIZE,
       },
     };
-
+  
+    const isDuplicate = savedStates.some(
+      (state) =>
+        JSON.stringify(state.lines) === JSON.stringify(newState.lines) &&
+        JSON.stringify(state.freePoint) === JSON.stringify(newState.freePoint)
+    );
+  
+    if (isDuplicate) {
+      setError("DUPLICATE STATE! NOT SAVED!");
+      setTimeout(() => setError(null), 1500);
+      return;
+    }
+  
     console.log("🔹 Saved Matching", savedStates.length + 1);
     console.table(newState.lines);
-
+  
     setSavedStates((prevStates) => [...prevStates, newState]);
-
+  
     setLocked(true);
     setPendingPoint(null);
   };
