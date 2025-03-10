@@ -168,13 +168,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setPointMap(newPointMap);
       setLines(newLines);
     
-      // Determine free point (if odd number of points)
       const finalPointsArray = [...newPointMap.values()];
       if (finalPointsArray.length % 2 === 1) {
-        setFreePoint(finalPointsArray[finalPointsArray.length - 1]);
+        const lastPoint = finalPointsArray[finalPointsArray.length - 1];
+        setFreePoint(lastPoint);
+        setPendingPoint(lastPoint);
       } else {
         setFreePoint(null);
-      }
+        setPendingPoint(null);
+      }      
     
       console.log("Generated Points:", finalPointsArray);
       console.log("Generated Segments:", newLines);
