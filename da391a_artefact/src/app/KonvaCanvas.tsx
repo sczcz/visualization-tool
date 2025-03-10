@@ -20,7 +20,7 @@ export interface KonvaCanvasRef {
 }
 
 const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
-  const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
+  const [points, setPoints] = useState(new Set<string>());
   const [lines, setLines] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } }[]>([]);
   const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(null);
   const [savedStates, setSavedStates] = useState<any[]>([]);
@@ -34,12 +34,16 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
-    getPoints: () => points,
+    getPoints: () =>
+      Array.from(points).map(str => {
+        const [x, y] = str.split(",").map(Number);
+        return { x, y };
+      }),
     getLines: () => lines,
     getFreePoint: () => freePoint,
     getSavedStates: () => savedStates,
     clearCanvas: () => {
-      setPoints([]);
+      setPoints(new Set());
       setLines([]);
       setFreePoint(null);
       setLocked(false);
@@ -50,8 +54,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setPendingPoint(null);
     },
     generateRandomPoints: (numPoints: number) => {
-      // Clear existing points and lines
-      setPoints([]);
+      // Clear everything
+      setPoints(new Set());
       setLines([]);
       setFreePoint(null);
       setLocked(false);
@@ -59,78 +63,118 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setError(null);
       setValidFlipPoints([]);
       setPendingPoint(null);
-      
-      // Implementation for random point generation with no crossing segments and no collinear points
+    
       const gridWidth = Math.floor(800 / GRID_SIZE);
       const gridHeight = Math.floor(600 / GRID_SIZE);
-      const newPoints: { x: number; y: number }[] = [];
-      
-      // Generate points one by one
-      const maxAttempts = 2000; // Increased to allow more attempts for finding valid points
-      let attempts = 0;
+      const newPoints = new Set<string>();
+    
+      const maxAttempts = 20000;
       let totalAttempts = 0;
-      
-      while (newPoints.length < numPoints && totalAttempts < maxAttempts * numPoints) {
-        totalAttempts++;
-        attempts++;
-        
-        // Generate a random point on the grid
-        const x = Math.floor(Math.random() * (gridWidth - 1) + 1) * GRID_SIZE;
-        const y = Math.floor(Math.random() * (gridHeight - 1) + 1) * GRID_SIZE;
-        const newPoint = { x, y };
-        
-        // Check if this point already exists
-        const pointExists = newPoints.some(p => p.x === x && p.y === y);
-        if (pointExists) continue;
-        
-        // Check if this point would create collinearity with ANY existing points
-        if (wouldCreateCollinearity(newPoint, newPoints)) continue;
-        
-        // If we're adding an even-indexed point (other than the first point),
-        // we need to check if the segment it forms would cross any existing segments
-        if (newPoints.length > 0 && newPoints.length % 2 === 1) {
-          const previousPoint = newPoints[newPoints.length - 1];
+      let backtrackStack: string[] = [];
+    
+      const shuffledGrid: { x: number; y: number }[] = [];
+      for (let i = 1; i < gridWidth - 1; i++) {
+        for (let j = 1; j < gridHeight - 1; j++) {
+          shuffledGrid.push({ x: i * GRID_SIZE, y: j * GRID_SIZE });
+        }
+      }
+      shuffledGrid.sort(() => Math.random() - 0.5);
+    
+      if (numPoints > shuffledGrid.length) {
+        setError("Too many points requested for the grid size!");
+        return;
+      }
+    
+      // Helper function to check if a new point is valid
+      const isValidPoint = (x: number, y: number, pointsArray: { x: number; y: number }[]) => {
+        const pointKey = `${x},${y}`;
+        if (newPoints.has(pointKey)) return false; // Avoid duplicates
+    
+        // Check collinearity only against the last few points to reduce complexity
+        if (pointsArray.length >= 2 && wouldCreateCollinearity({ x, y }, newPoints)) {
+          return false;
+        }
+    
+        // Check segment crossing only if the number of points is odd
+        if (pointsArray.length % 2 === 1) {
+          const previousPoint = pointsArray[pointsArray.length - 1];
           const existingLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
-          
-          // Create existing lines from pairs of points
-          for (let i = 0; i < Math.floor((newPoints.length - 1) / 2); i++) {
+          for (let i = 0; i < pointsArray.length - 1; i += 2) {
             existingLines.push({
-              start: newPoints[i * 2],
-              end: newPoints[i * 2 + 1]
+              start: pointsArray[i],
+              end: pointsArray[i + 1],
             });
           }
-          
-          if (wouldCrossExistingSegments(previousPoint, newPoint, existingLines)) {
-            continue;
+    
+          if (wouldCrossExistingSegments(previousPoint, { x, y }, existingLines)) {
+            return false;
           }
         }
-        
-        // If we reach here, the point is valid
-        newPoints.push(newPoint);
-        attempts = 0; // Reset attempts counter after successful addition
+    
+        return true;
+      };
+    
+      // Attempt to place points
+      while (newPoints.size < numPoints && totalAttempts < maxAttempts) {
+        totalAttempts++;
+    
+        let x, y;
+        if (shuffledGrid.length > 0) {
+          // Pick from shuffled grid for initial points
+          const point = shuffledGrid.pop();
+          if (!point) continue;
+          x = point.x;
+          y = point.y;
+        } else {
+          // Switch to random placement if shuffled grid is exhausted
+          x = Math.floor(Math.random() * (gridWidth - 1) + 1) * GRID_SIZE;
+          y = Math.floor(Math.random() * (gridHeight - 1) + 1) * GRID_SIZE;
+        }
+    
+        const pointsArray = Array.from(newPoints, str => {
+          const [px, py] = str.split(",").map(Number);
+          return { x: px, y: py };
+        });
+    
+        if (!isValidPoint(x, y, pointsArray)) continue;
+    
+        // Add the point
+        const pointKey = `${x},${y}`;
+        newPoints.add(pointKey);
+        backtrackStack.push(pointKey); // Store for backtracking
+    
+        // Backtracking step: Remove points if we're stuck
+        if (newPoints.size > numPoints - 4 && totalAttempts > maxAttempts * 0.8) {
+          // Remove up to 2 points to allow more flexibility
+          for (let i = 0; i < 2; i++) {
+            if (backtrackStack.length > 0) {
+              const removedPoint = backtrackStack.pop();
+              if (removedPoint) newPoints.delete(removedPoint);
+            }
+          }
+        }
       }
-      
-      // If we couldn't generate enough points, try with fewer points
-      if (newPoints.length < numPoints) {
-        console.warn(`Could only generate ${newPoints.length} points without collinearity or crossing segments`);
-      }
-      
+    
+      // Final conversion
+      const finalPointsArray = Array.from(newPoints, str => {
+        const [px, py] = str.split(",").map(Number);
+        return { x: px, y: py };
+      });
+    
       setPoints(newPoints);
-      
-      // If odd number of points, set the last one as free point
-      if (newPoints.length % 2 === 1 && newPoints.length > 0) {
-        setFreePoint(newPoints[newPoints.length - 1]);
+    
+      if (finalPointsArray.length % 2 === 1 && finalPointsArray.length > 0) {
+        setFreePoint(finalPointsArray[finalPointsArray.length - 1]);
       }
-      
-      // Create lines for pairs of points
+    
       const newLines = [];
-      for (let i = 0; i < Math.floor(newPoints.length / 2); i++) {
+      for (let i = 0; i < Math.floor(finalPointsArray.length / 2); i++) {
         newLines.push({
-          start: newPoints[i * 2],
-          end: newPoints[i * 2 + 1]
+          start: finalPointsArray[i * 2],
+          end: finalPointsArray[i * 2 + 1],
         });
       }
-      
+    
       setLines(newLines);
     },
     loadState: (stateIndex: number) => {
@@ -138,7 +182,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         const state = savedStates[stateIndex];
         
         // Clear current canvas
-        setPoints([]);
+        setPoints(new Set());
         setLines([]);
         setFreePoint(null);
         setLocked(false);
@@ -152,7 +196,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         const GRID_ROWS = 600 / GRID_SIZE;
         
         // Create points from the lines in the saved state
-        const newPoints: { x: number; y: number }[] = [];
+        const newPoints = new Set<string>();
         const newLines: { start: { x: number; y: number }; end: { x: number; y: number } }[] = [];
         
         state.lines.forEach((line: any) => {
@@ -168,13 +212,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           };
           
           // Add points if they don't already exist
-          if (!newPoints.some(p => p.x === startPoint.x && p.y === startPoint.y)) {
-            newPoints.push(startPoint);
-          }
+          const startKey = `${startPoint.x},${startPoint.y}`;
+          const endKey = `${endPoint.x},${endPoint.y}`;
           
-          if (!newPoints.some(p => p.x === endPoint.x && p.y === endPoint.y)) {
-            newPoints.push(endPoint);
-          }
+          if (!newPoints.has(startKey)) newPoints.add(startKey);
+          if (!newPoints.has(endKey)) newPoints.add(endKey);          
           
           // Add the line
           newLines.push({
@@ -190,15 +232,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
             y: (GRID_ROWS - state.freePoint.y) * GRID_SIZE
           };
           
-          if (!newPoints.some(p => p.x === freePointCanvas.x && p.y === freePointCanvas.y)) {
-            newPoints.push(freePointCanvas);
+          const freePointKey = `${freePointCanvas.x},${freePointCanvas.y}`;
+          if (!newPoints.has(freePointKey)) {
+            newPoints.add(freePointKey);
           }
-          
           setFreePoint(freePointCanvas);
         }
         
         // Set the state
-        setPoints(newPoints);
+        setPoints(new Set(newPoints));
         setLines(newLines);
         setLocked(true); // Set to locked state since we're loading a saved configuration
         
@@ -209,16 +251,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   const handleCanvasClick = (e: any) => {
     if (locked) return;
-
+  
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
   
     const snappedPos = snapToGrid(pointerPos.x, pointerPos.y, GRID_SIZE);
-    
-    // Check if this point already exists
-    const pointExists = points.some(p => p.x === snappedPos.x && p.y === snappedPos.y);
-    if (pointExists) {
+    const pointKey = `${snappedPos.x},${snappedPos.y}`;
+  
+    if (points.has(pointKey)) {
       setError("Point already exists!");
       setFlashRed(true);
       setTimeout(() => {
@@ -227,8 +268,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       }, 1500);
       return;
     }
-    
-    // Check for collinearity with existing points
+  
     if (wouldCreateCollinearity(snappedPos, points)) {
       setError("Cannot place collinear points!");
       setFlashRed(true);
@@ -239,13 +279,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
   
-    // If we have a pending point, create a segment
     if (pendingPoint) {
-      const newSegment = {
-        start: pendingPoint,
-        end: snappedPos
-      };
-      
+      const newSegment = { start: pendingPoint, end: snappedPos };
+  
       if (wouldCrossExistingSegments(pendingPoint, snappedPos, lines)) {
         setError("DO NOT CROSS LINES!!!");
         setFlashRed(true);
@@ -255,31 +291,30 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         }, 1500);
         return;
       }
-      
-      // Add the new point and segment
-      setPoints(prevPoints => [...prevPoints, snappedPos]);
+  
+      setPoints(prevPoints => {
+        const newSet = new Set(prevPoints);
+        newSet.add(pointKey);
+  
+        setFreePoint(newSet.size % 2 === 1 ? snappedPos : null);
+        return newSet;
+      });
+  
       setLines(prevLines => [...prevLines, newSegment]);
       setPendingPoint(null);
-      
-      // If we have an odd number of points, set the last one as free point
-      if ((points.length + 1) % 2 === 1) {
-        setFreePoint(snappedPos);
-      } else {
-        setFreePoint(null);
-      }
     } else {
-      // This is the first point of a potential segment
-      setPoints(prevPoints => [...prevPoints, snappedPos]);
+      setPoints(prevPoints => {
+        const newSet = new Set(prevPoints);
+        newSet.add(pointKey);
+  
+        setFreePoint(newSet.size % 2 === 1 ? snappedPos : null);
+        return newSet;
+      });
+  
       setPendingPoint(snappedPos);
-      
-      // If we have an odd number of points, set the last one as free point
-      if ((points.length + 1) % 2 === 1) {
-        setFreePoint(snappedPos);
-      } else {
-        setFreePoint(null);
-      }
     }
   };
+  
 
   const saveState = () => {
     if (lines.length === 0 || freePoint === null) {
@@ -484,9 +519,10 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
             ))}
 
             {/* Render points */}
-            {points.map((p, i) => (
-              <Circle key={`point-${i}`} x={p.x} y={p.y} radius={5} fill="blue" />
-            ))}
+            {Array.from(points).map((pointString, i) => {
+              const [x, y] = pointString.split(",").map(Number);
+              return <Circle key={`point-${i}`} x={x} y={y} radius={5} fill="blue" />;
+            })}
 
             {/* Render free point */}
             {freePoint && <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />}
