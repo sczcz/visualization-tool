@@ -79,6 +79,7 @@ export default function Home() {
     // Add current state to history
     setHistory(prev => [...prev, {}]);
     console.log("Clear canvas");
+    toast.success("Canvas cleared");
   }, [updateStatistics]);
   
   const handleUndo = useCallback(() => {
@@ -91,6 +92,7 @@ export default function Home() {
   
   const handleSave = useCallback(() => {
     console.log("Save canvas");
+    toast.success("Canvas saved");
   }, []);
   
   const handleLoadCanonical = useCallback(() => {
@@ -112,6 +114,7 @@ export default function Home() {
     
     // Add to history
     setHistory(prev => [...prev, { numPoints }]);
+    toast.success(`Generated random matching with ${numPoints} points`);
   }, [updateStatistics]);
 
   const handleClearHistory = useCallback(() => {
@@ -137,6 +140,7 @@ export default function Home() {
     }
     
     console.log(`Loaded history at index ${historyIndex}`);
+    toast.success(`Loaded history at index ${historyIndex}`);
   }, [updateStatistics]);
 
   return (
