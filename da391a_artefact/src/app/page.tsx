@@ -148,8 +148,7 @@ export default function Home() {
       canvasRef.current.edit();
       updateStatistics();
     }
-    console.log("Edit canvas");
-    toast.success("Canvas edited");
+
   }, []);
 
   return (
