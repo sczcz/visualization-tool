@@ -3,6 +3,7 @@
 import React from "react";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { toast } from 'react-hot-toast';
 import { snapToGrid, doesIntersect } from "./utils/MathUtils";
 import {
   wouldCreateCollinearity,
@@ -21,6 +22,7 @@ export interface KonvaCanvasRef {
   }[];
   getFreePoint: () => { x: number; y: number } | null;
   getSavedStates: () => any[];
+  clearSavedStates: () => void; 
   clearCanvas: () => void;
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
@@ -38,7 +40,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>(
     []
   );
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
   const [flashRed, setFlashRed] = useState(false);
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [validFlipPoints, setValidFlipPoints] = useState<
@@ -55,13 +57,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     getLines: () => lines,
     getFreePoint: () => freePoint,
     getSavedStates: () => savedStates,
+    clearSavedStates: () => {
+      setSavedStates([]);
+    },
     clearCanvas: () => {
       setPointMap(new Map());
       setLines([]);
       setFreePoint(null);
       setLocked(false);
       setFreedPoints([]);
-      setError(null);
       setFlashRed(false);
       setValidFlipPoints([]);
       setPendingPoint(null);
@@ -73,7 +77,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreePoint(null);
       setLocked(false);
       setFreedPoints([]);
-      setError(null);
       setValidFlipPoints([]);
       setPendingPoint(null);
 
@@ -96,7 +99,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       shuffledGrid.sort(() => Math.random() - 0.5);
 
       if (numPoints > shuffledGrid.length) {
-        setError("Too many points requested for the grid size!");
+        toast.error("Cannot generate more points than available grid positions!");
         return;
       }
 
@@ -200,8 +203,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         setFreePoint(null);
         setLocked(false);
         setFreedPoints([]);
-        setError(null);
-        setFlashRed(false);
         setValidFlipPoints([]);
         setPendingPoint(null);
 
@@ -265,12 +266,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     },
     makeCanonical: () => {
       if (!locked || pointMap.size < 3) {
-        setError("Cannot make canonical! No locked matching available.");
-        setFlashRed(true);
-        setTimeout(() => {
-          setError(null);
-          setFlashRed(false);
-        }, 1500);
+        toast.error("Cannot make canonical! No locked matching available.");
         return;
       }
 
@@ -310,6 +306,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreePoint(newFreePoint);
 
       console.log("Transformed to canonical matching");
+      toast.success("Successfully transformed to canonical matching!")
     },
   }));
 
@@ -324,12 +321,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const pointKey = `${snappedPos.x},${snappedPos.y}`;
 
     if (pointMap.has(pointKey)) {
-      setError("Point already exists!");
-      setFlashRed(true);
-      setTimeout(() => {
-        setError(null);
-        setFlashRed(false);
-      }, 1500);
+      toast.error("Cannot place points on top of each other!");
       return;
     }
 
@@ -339,12 +331,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         pointMap
       )
     ) {
-      setError("Cannot place collinear points!");
-      setFlashRed(true);
-      setTimeout(() => {
-        setError(null);
-        setFlashRed(false);
-      }, 1500);
+      toast.error("Cannot create collinear points!");
       return;
     }
     // In handleCanvasClick function, modify this section:
@@ -358,12 +345,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
       // First check if the segment would cross existing lines
       if (wouldCrossExistingSegments(startPoint, endPoint, lines)) {
-        setError("DO NOT CROSS LINES!!!");
-        setFlashRed(true);
-        setTimeout(() => {
-          setError(null);
-          setFlashRed(false);
-        }, 1500);
+        toast.error("Cannot create segment that crosses other lines!");
         return;
       }
 
@@ -410,8 +392,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   const saveState = () => {
     if (lines.length === 0 || freePoint === null || pointMap.size % 2 == 0) {
-      setError("CANNOT SAVE! NO VALID CONFIG!!");
-      setTimeout(() => setError(null), 1500);
+      toast.error("Cannot save state! Incomplete matching.");
       return;
     }
 
@@ -448,8 +429,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     );
 
     if (isDuplicate) {
-      setError("DUPLICATE STATE! NOT SAVED!");
-      setTimeout(() => setError(null), 1500);
+      toast.error("Cannot save duplicate state!");
       return;
     }
 
@@ -460,6 +440,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
     setLocked(true);
     setPendingPoint(null);
+    toast.success('Successfully saved matching!')
   };
 
   // Check if a potential flip would be valid
@@ -515,12 +496,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
 
     if (validPoints.length === 0) {
-      setError("Cannot remove this line - no valid flip possible!");
-      setFlashRed(true);
-      setTimeout(() => {
-        setError(null);
-        setFlashRed(false);
-      }, 1500);
+      toast.error("No valid flips possible for this line!");
       return;
     }
 
@@ -530,7 +506,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     setLines(newLines);
     setFreedPoints([removedLine.start, removedLine.end]);
     setValidFlipPoints(validPoints);
-    setError(null);
 
     console.log(
       `Removed line at index ${index}, freed points:`,
@@ -565,10 +540,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     );
 
     if (!isFreedPoint) {
-      setError(
-        "You must click on one of the highlighted points to connect it to the free point!"
-      );
-      setTimeout(() => setError(null), 1500);
+      toast.error("Click on one of the freed points to connect!");
       return;
     }
 
@@ -578,8 +550,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     );
 
     if (!isValidFlipPoint) {
-      setError("This connection would cross other lines!");
-      setTimeout(() => setError(null), 1500);
+      toast.error("This is not a valid flip point!");
       return;
     }
 
@@ -722,20 +693,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         </Stage>
       </div>
 
-      <div style={{ marginTop: "20px" }}>
-        {error && (
-          <div
-            style={{
-              color: "red",
-              fontSize: "18px",
-              fontWeight: "bold",
-              marginBottom: "10px",
-            }}
-          >
-            {error}
-          </div>
-        )}
-      </div>
+      {/* <div style={{ marginTop: "20px" }}>
+       
+      </div> */}
     </div>
   );
 });

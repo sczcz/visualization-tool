@@ -1,38 +1,44 @@
-import React, { useState } from 'react';
-import ActionButton from './ActionButton';
+import React, { useState } from "react";
+import ActionButton from "./ActionButton";
 
 interface SidebarProps {
   className?: string;
-  mode: 'manual' | 'auto' | 'target';
+  mode: "manual" | "auto" | "target";
   onRandomGenerate: (numPoints: number) => void;
   onHistorySelect: (index: number) => void;
   // Add statistics props
   pointCount: number;
   segmentCount: number;
   avgDistance: number;
-  freePointCoords: { x: number, y: number } | null;
+  freePointCoords: { x: number; y: number } | null;
   savedStates: any[];
+  onClearHistory: () => void; // Add this prop
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  className = '',
+  className = "",
   mode,
   onRandomGenerate,
   onHistorySelect,
+  onClearHistory,
   pointCount = 0,
   segmentCount = 0,
   avgDistance = 0,
   freePointCoords = null,
-  savedStates = []
+  savedStates = [],
 }) => {
   const [numPoints, setNumPoints] = useState<number>(5);
-  
+
   // Combine classes manually
-  const sidebarClasses = ["p-4 h-full overflow-auto border-l", className].filter(Boolean).join(' ');
+  const sidebarClasses = ["p-4 h-full overflow-auto border-l", className]
+    .filter(Boolean)
+    .join(" ");
+
+  
 
   return (
     <div className={sidebarClasses}>
-      {mode === 'auto' && (
+      {mode === "auto" && (
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-2">Auto Generation</h3>
           <div className="flex items-center mb-2">
@@ -55,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </ActionButton>
         </div>
       )}
-      
+
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-2">Matching Statistics</h3>
         <div className="bg-gray-100 p-3 rounded">
@@ -70,20 +76,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex justify-between mb-1">
             <span className="text-sm">Avg Distance:</span>
             <span className="text-sm font-medium">
-              {avgDistance > 0 ? avgDistance.toFixed(3) : '-'}
+              {avgDistance > 0 ? avgDistance.toFixed(3) : "-"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm">Free Point:</span>
             <span className="text-sm font-medium">
-              {freePointCoords 
-                ? `(${freePointCoords.x}, ${freePointCoords.y})` 
+              {freePointCoords
+                ? `(${freePointCoords.x}, ${freePointCoords.y})`
                 : "None"}
             </span>
           </div>
         </div>
       </div>
-      
+
       <div>
         <h3 className="text-lg font-medium mb-2">History</h3>
         <div className="max-h-60 overflow-y-auto">
@@ -92,12 +98,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div
                 key={`history-${index}`}
                 className={`px-3 py-2 rounded mb-1 text-sm flex justify-between items-center ${
-                  index === savedStates.length - 1 ? "bg-blue-100" : "bg-gray-100"
+                  index === savedStates.length - 1
+                    ? "bg-blue-100"
+                    : "bg-gray-100"
                 }`}
               >
                 <div>
-                  Matching {index + 1}: {state.segmentCount/2} segments
-                  {state.freePoint && `, Free Point at (${state.freePoint.x.toFixed(1)}, ${state.freePoint.y.toFixed(1)})`}
+                  Matching {index + 1}: {state.segmentCount / 2} segments
+                  {state.freePoint &&
+                    `, Free Point at (${state.freePoint.x.toFixed(
+                      1
+                    )}, ${state.freePoint.y.toFixed(1)})`}
                 </div>
                 <ActionButton
                   variant="outline"
@@ -115,6 +126,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             </p>
           )}
         </div>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={onClearHistory} // Call the clear function
+          className="mt-2"
+        >
+          Clear History
+        </ActionButton>
       </div>
     </div>
   );
