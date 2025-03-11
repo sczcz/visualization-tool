@@ -97,8 +97,12 @@ export default function Home() {
   }, []);
   
   const handleLoadCanonical = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.makeCanonical();
+      updateStatistics();
+    }
     console.log("Load canonical");
-  }, []);
+  }, [updateStatistics]);
   
   // Define handlers for the Sidebar component
   const handleRandomGenerate = useCallback((numPoints: number) => {

@@ -24,6 +24,7 @@ export interface KonvaCanvasRef {
   clearCanvas: () => void;
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
+  makeCanonical: () => void;
 }
 
 const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
@@ -75,16 +76,16 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setError(null);
       setValidFlipPoints([]);
       setPendingPoint(null);
-    
+
       const gridWidth = Math.floor(800 / GRID_SIZE);
       const gridHeight = Math.floor(600 / GRID_SIZE);
       const newPointMap = new Map<string, Point>();
       const newLines: Segment[] = [];
-    
+
       const maxAttempts = 20000;
       let totalAttempts = 0;
       let backtrackStack: string[] = [];
-    
+
       // Create shuffled grid positions
       const shuffledGrid: { x: number; y: number }[] = [];
       for (let i = 1; i < gridWidth - 1; i++) {
@@ -93,12 +94,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         }
       }
       shuffledGrid.sort(() => Math.random() - 0.5);
-    
+
       if (numPoints > shuffledGrid.length) {
         setError("Too many points requested for the grid size!");
         return;
       }
-    
+
       // Helper function to check if a new point is valid
       const isValidPoint = (
         point: Point,
@@ -106,30 +107,32 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         lines: Segment[]
       ) => {
         if (pointMap.has(point.key)) return false; // Avoid duplicates
-    
+
         if (pointMap.size >= 2 && wouldCreateCollinearity(point, pointMap)) {
           return false;
         }
-    
+
         if (pointMap.size % 2 === 1) {
           const previousPoint = [...pointMap.values()].pop();
           if (!previousPoint) return false;
-    
+
           const newSegment: Segment = { start: previousPoint, end: point };
-    
+
           // Check if the new segment crosses existing ones
-          if (wouldCrossExistingSegments(newSegment.start, newSegment.end, lines)) {
+          if (
+            wouldCrossExistingSegments(newSegment.start, newSegment.end, lines)
+          ) {
             return false;
           }
         }
-    
+
         return true;
       };
-    
+
       // Generate points and pairs
       while (newPointMap.size < numPoints && totalAttempts < maxAttempts) {
         totalAttempts++;
-    
+
         let x, y;
         if (shuffledGrid.length > 0) {
           const point = shuffledGrid.pop();
@@ -140,34 +143,40 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           x = Math.floor(Math.random() * (gridWidth - 1) + 1) * GRID_SIZE;
           y = Math.floor(Math.random() * (gridHeight - 1) + 1) * GRID_SIZE;
         }
-    
+
         const pointKey = `${x},${y}`;
         const newPoint: Point = { x, y, key: pointKey };
-    
+
         if (!isValidPoint(newPoint, newPointMap, newLines)) continue;
-    
+
         // Handle segment pairing
         if (newPointMap.size % 2 === 1) {
           const previousPoint = [...newPointMap.values()].pop();
           if (!previousPoint) continue;
-    
+
           const newSegment: Segment = { start: previousPoint, end: newPoint };
-    
+
           // Final intersection check
-          if (wouldCrossExistingSegments(newSegment.start, newSegment.end, newLines)) {
+          if (
+            wouldCrossExistingSegments(
+              newSegment.start,
+              newSegment.end,
+              newLines
+            )
+          ) {
             continue; // Skip if it causes an intersection
           }
-    
+
           newLines.push(newSegment);
         }
-    
+
         newPointMap.set(pointKey, newPoint);
         backtrackStack.push(pointKey);
       }
-    
+
       setPointMap(newPointMap);
       setLines(newLines);
-    
+
       const finalPointsArray = [...newPointMap.values()];
       if (finalPointsArray.length % 2 === 1) {
         const lastPoint = finalPointsArray[finalPointsArray.length - 1];
@@ -176,11 +185,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       } else {
         setFreePoint(null);
         setPendingPoint(null);
-      }      
-    
+      }
+
       console.log("Generated Points:", finalPointsArray);
       console.log("Generated Segments:", newLines);
-    },    
+    },
     loadState: (stateIndex: number) => {
       if (stateIndex >= 0 && stateIndex < savedStates.length) {
         const state = savedStates[stateIndex];
@@ -253,6 +262,54 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
         console.log(`Loaded state ${stateIndex + 1}`);
       }
+    },
+    makeCanonical: () => {
+      if (!locked || pointMap.size < 3) {
+        setError("Cannot make canonical! No locked matching available.");
+        setFlashRed(true);
+        setTimeout(() => {
+          setError(null);
+          setFlashRed(false);
+        }, 1500);
+        return;
+      }
+
+      // Get all points including the free point
+      const allPoints = Array.from(pointMap.values());
+
+      // Sort points in canonical order (left to right)
+      const sortedPoints = [...allPoints].sort((a, b) => a.x - b.x);
+
+      // Create new segments in canonical form
+      const newLines: Segment[] = [];
+      let newFreePoint: Point | null = null;
+
+      // If odd number of points, the last one becomes the free point
+      if (sortedPoints.length % 2 === 1) {
+        newFreePoint = sortedPoints[sortedPoints.length - 1];
+
+        // Create segments for pairs of points (0-1, 2-3, etc.)
+        for (let i = 0; i < sortedPoints.length - 1; i += 2) {
+          newLines.push({
+            start: sortedPoints[i],
+            end: sortedPoints[i + 1],
+          });
+        }
+      } else {
+        // Even number of points, create segments for all pairs
+        for (let i = 0; i < sortedPoints.length; i += 2) {
+          newLines.push({
+            start: sortedPoints[i],
+            end: sortedPoints[i + 1],
+          });
+        }
+      }
+
+      // Update the canvas state
+      setLines(newLines);
+      setFreePoint(newFreePoint);
+
+      console.log("Transformed to canonical matching");
     },
   }));
 
@@ -357,9 +414,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setTimeout(() => setError(null), 1500);
       return;
     }
-  
+
     const GRID_ROWS = 600 / GRID_SIZE;
-  
+
     const uniqueLines = Array.from(
       new Map(
         lines.map((line) => [
@@ -371,7 +428,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         ])
       ).values()
     );
-  
+
     const newState = {
       segmentCount: uniqueLines.length * 2,
       lines: uniqueLines.map(({ start, end }) => ({
@@ -383,27 +440,27 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         y: GRID_ROWS - freePoint.y / GRID_SIZE,
       },
     };
-  
+
     const isDuplicate = savedStates.some(
       (state) =>
         JSON.stringify(state.lines) === JSON.stringify(newState.lines) &&
         JSON.stringify(state.freePoint) === JSON.stringify(newState.freePoint)
     );
-  
+
     if (isDuplicate) {
       setError("DUPLICATE STATE! NOT SAVED!");
       setTimeout(() => setError(null), 1500);
       return;
     }
-  
+
     console.log("🔹 Saved Matching", savedStates.length + 1);
     console.table(newState.lines);
-  
+
     setSavedStates((prevStates) => [...prevStates, newState]);
-  
+
     setLocked(true);
     setPendingPoint(null);
-  };  
+  };
 
   // Check if a potential flip would be valid
   const isValidFlip = (
