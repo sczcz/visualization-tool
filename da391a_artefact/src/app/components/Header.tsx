@@ -9,6 +9,7 @@ interface HeaderProps {
   onUndo: () => void;
   onSave: () => void;
   onLoadCanonical: () => void;
+  onEdit: () => void;
   canUndo: boolean;
 }
 
@@ -20,7 +21,9 @@ const Header: React.FC<HeaderProps> = ({
   onUndo,
   onSave,
   onLoadCanonical,
+  onEdit,
   canUndo
+  
 }) => {
   // Combine classes manually
   const headerClasses = [" p-4 w-full", className].filter(Boolean).join(' ');
@@ -59,6 +62,13 @@ const Header: React.FC<HeaderProps> = ({
             onClick={onLoadCanonical}
           >
             Canonical
+          </ActionButton>
+          <ActionButton 
+            variant="outline" 
+            size="sm"
+            onClick={onEdit}
+          >
+            Edit
           </ActionButton>
         </div>
       </div>

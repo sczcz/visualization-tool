@@ -27,6 +27,7 @@ export interface KonvaCanvasRef {
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
   makeCanonical: () => void;
+  edit: () => void;
 }
 
 const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
@@ -57,6 +58,13 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     getLines: () => lines,
     getFreePoint: () => freePoint,
     getSavedStates: () => savedStates,
+    edit: () => {
+      setLocked(false);
+      if (freePoint) {
+        setPendingPoint(freePoint);
+      }
+      toast.success("Unlocked matching for editing!");
+    },
     clearSavedStates: () => {
       setSavedStates([]);
     },
@@ -79,6 +87,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreedPoints([]);
       setValidFlipPoints([]);
       setPendingPoint(null);
+      
 
       const gridWidth = Math.floor(800 / GRID_SIZE);
       const gridHeight = Math.floor(600 / GRID_SIZE);

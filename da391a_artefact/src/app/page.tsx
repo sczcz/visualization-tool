@@ -143,6 +143,15 @@ export default function Home() {
     toast.success(`Loaded history at index ${historyIndex}`);
   }, [updateStatistics]);
 
+  const handleEdit = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.edit();
+      updateStatistics();
+    }
+    console.log("Edit canvas");
+    toast.success("Canvas edited");
+  }, []);
+
   return (
     <div className="bg-white text-black p-4 w-full flex flex-col h-screen">
       <Toaster position="bottom-left" />
@@ -153,6 +162,7 @@ export default function Home() {
         onUndo={handleUndo}
         onSave={handleSave}
         onLoadCanonical={handleLoadCanonical}
+        onEdit={handleEdit}
         canUndo={history.length > 1}
       />
       <div className="flex flex-1 overflow-hidden">
@@ -164,7 +174,7 @@ export default function Home() {
             mode={mode}
             onRandomGenerate={handleRandomGenerate}
             onHistorySelect={handleHistorySelect}
-            onClearHistory={handleClearHistory} // Pass the clear function
+            onClearHistory={handleClearHistory} 
             pointCount={pointCount}
             segmentCount={segmentCount}
             avgDistance={avgDistance}
