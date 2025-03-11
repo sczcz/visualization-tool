@@ -9,6 +9,7 @@ interface HeaderProps {
   onUndo: () => void;
   onSave: () => void;
   onLoadCanonical: () => void;
+  onGenerateAllMatchings: () => void;
   canUndo: boolean;
 }
 
@@ -20,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({
   onUndo,
   onSave,
   onLoadCanonical,
+  onGenerateAllMatchings,
   canUndo
 }) => {
   // Combine classes manually
@@ -59,6 +61,13 @@ const Header: React.FC<HeaderProps> = ({
             onClick={onLoadCanonical}
           >
             Canonical
+          </ActionButton>
+          <ActionButton 
+            variant="outline" 
+            size="sm"
+            onClick={onGenerateAllMatchings}
+          >
+            Generate All Matchings
           </ActionButton>
         </div>
       </div>

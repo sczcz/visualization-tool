@@ -135,6 +135,7 @@ export default function Home() {
         onUndo={handleUndo}
         onSave={handleSave}
         onLoadCanonical={handleLoadCanonical}
+        onGenerateAllMatchings={() => canvasRef.current?.generateAllMatchings()}
         canUndo={history.length > 1}
       />
       <div className="flex flex-1 overflow-hidden">

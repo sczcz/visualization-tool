@@ -8,7 +8,7 @@ import {
   wouldCreateCollinearity,
   wouldCrossExistingSegments,
 } from "./utils/CanvasUtils";
-import { Point, Segment } from "./types";
+import { Point, Segment, Matching } from "./types";
 
 const GRID_SIZE = 50;
 
@@ -24,6 +24,7 @@ export interface KonvaCanvasRef {
   clearCanvas: () => void;
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
+  generateAllMatchings: () => void;
 }
 
 const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
@@ -48,12 +49,129 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     y: number;
   } | null>(null);
 
+  const saveMatching = (matching: Matching) => {
+    if (!matching || !matching.segments || !matching.pointMap) {
+      console.error("Invalid matching data:", matching);
+      return;
+    }
+  
+    const GRID_ROWS = 600 / GRID_SIZE;
+  
+    const uniqueLines = Array.from(
+      new Map(
+        matching.segments.map((line) => [
+          JSON.stringify({
+            start: { x: line.start.x, y: line.start.y },
+            end: { x: line.end.x, y: line.end.y },
+          }),
+          line,
+        ])
+      ).values()
+    );
+  
+    const newState = {
+      segmentCount: uniqueLines.length,
+      lines: uniqueLines.map(({ start, end }) => ({
+        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
+        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
+      })),
+      freePoint: matching.freePoint
+        ? {
+            x: matching.freePoint.x / GRID_SIZE,
+            y: GRID_ROWS - matching.freePoint.y / GRID_SIZE,
+          }
+        : null,
+    };
+  
+    console.log("🔹 Saving Matching", savedStates.length + 1);
+    console.table(newState.lines);
+  
+    setSavedStates((prevStates) => [...prevStates, newState]);
+  };
+  
+  const generateAllMatchings = () => {
+    const allPoints = Array.from(pointMap.values());
+  
+    if (allPoints.length % 2 === 0) {
+      setError("Cannot generate matchings with an even number of points.");
+      setTimeout(() => setError(null), 2000);
+      return;
+    }
+  
+    const matchings = new Set<string>(); // Store unique matchings
+    const matchingsList: Matching[] = [];
+  
+    console.log(`🔍 Generating all matchings for ${allPoints.length} points...`);
+  
+    const findMatchings = (remaining: Point[], segments: Segment[]) => {
+      if (remaining.length === 1) {
+        // Ensure order-independent comparison
+        const sortedSegments = [...segments].map(s => ({
+          start: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y) 
+            ? s.start : s.end,
+          end: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y) 
+            ? s.end : s.start,
+        })).sort((a, b) => 
+          a.start.x - b.start.x || a.start.y - b.start.y || 
+          a.end.x - b.end.x || a.end.y - b.end.y
+        );
+  
+        const matchingString = JSON.stringify(sortedSegments); // Unique string for Set
+  
+        if (!matchings.has(matchingString)) {
+          matchings.add(matchingString);
+          matchingsList.push({
+            pointMap: new Map(pointMap),
+            segments: sortedSegments,
+            freePoint: remaining[0],
+          });
+        }
+        return;
+      }
+  
+      for (let i = 0; i < remaining.length - 1; i++) {
+        const first = remaining[i];
+  
+        for (let j = i + 1; j < remaining.length; j++) {
+          const second = remaining[j];
+  
+          if (!wouldCrossExistingSegments(first, second, segments)) {
+            findMatchings(
+              remaining.filter((_, index) => index !== i && index !== j),
+              [...segments, { start: first, end: second }]
+            );
+          }
+        }
+      }
+    };
+  
+    findMatchings(allPoints, []);
+
+    const jsonData = JSON.stringify(matchingsList, null, 2);
+    const blob = new Blob([jsonData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+  
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `matchings_${allPoints.length}_points.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  
+    console.log("📂 JSON file saved!");
+  
+    console.log(`✅ Found ${matchingsList.length} unique matchings.`);
+    matchingsList.forEach(saveMatching);
+  };        
+
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
     getPoints: () => Array.from(pointMap.values()),
     getLines: () => lines,
     getFreePoint: () => freePoint,
     getSavedStates: () => savedStates,
+    generateAllMatchings,
     clearCanvas: () => {
       setPointMap(new Map());
       setLines([]);
