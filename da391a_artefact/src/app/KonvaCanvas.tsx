@@ -98,8 +98,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
   
-    const matchings = new Set<string>(); // Store unique matchings
-    const matchingsList: Matching[] = [];
+    const matchingsMap = new Map<string, Matching>(); // Store unique matchings
   
     console.log(`🔍 Generating all matchings for ${allPoints.length} points...`);
   
@@ -107,20 +106,19 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       if (remaining.length === 1) {
         // Ensure order-independent comparison
         const sortedSegments = [...segments].map(s => ({
-          start: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y) 
+          start: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
             ? s.start : s.end,
-          end: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y) 
+          end: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
             ? s.end : s.start,
         })).sort((a, b) => 
           a.start.x - b.start.x || a.start.y - b.start.y || 
           a.end.x - b.end.x || a.end.y - b.end.y
         );
   
-        const matchingString = JSON.stringify(sortedSegments); // Unique string for Set
+        const matchingString = JSON.stringify(sortedSegments);
   
-        if (!matchings.has(matchingString)) {
-          matchings.add(matchingString);
-          matchingsList.push({
+        if (!matchingsMap.has(matchingString)) {
+          matchingsMap.set(matchingString, {
             pointMap: new Map(pointMap),
             segments: sortedSegments,
             freePoint: remaining[0],
@@ -146,24 +144,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     };
   
     findMatchings(allPoints, []);
-
-    const jsonData = JSON.stringify(matchingsList, null, 2);
-    const blob = new Blob([jsonData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
   
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `matchings_${allPoints.length}_points.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  
-    console.log("📂 JSON file saved!");
-  
-    console.log(`✅ Found ${matchingsList.length} unique matchings.`);
-    matchingsList.forEach(saveMatching);
-  };        
+    const finalMatchingsList = Array.from(matchingsMap.values());
+    finalMatchingsList.forEach(saveMatching);
+  };
+          
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
