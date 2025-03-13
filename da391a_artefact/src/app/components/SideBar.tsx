@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ActionButton from "./ActionButton";
 
 interface SidebarProps {
@@ -28,6 +28,30 @@ const Sidebar: React.FC<SidebarProps> = ({
   savedStates = [],
 }) => {
   const [numPoints, setNumPoints] = useState<number>(5);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (savedStates.length > 0 && selectedIndex === null) {
+      setSelectedIndex(savedStates.length - 1);
+    }
+  }, [savedStates]);
+
+  const handleHistorySelect = (index: number) => {
+    setSelectedIndex(index);
+    onHistorySelect(index);
+  };
+
+  const handleNext = () => {
+    if (selectedIndex !== null && selectedIndex < savedStates.length - 1) {
+      handleHistorySelect(selectedIndex + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (selectedIndex !== null && selectedIndex > 0) {
+      handleHistorySelect(selectedIndex - 1);
+    }
+  }
 
   // Combine classes manually
   const sidebarClasses = ["p-4 h-full overflow-auto border-l", className]
@@ -90,6 +114,29 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
+      {/* Arrow things */}
+      <div className="flex justify-between items-center mb-3">
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handlePrev}
+          disabled={selectedIndex === null || selectedIndex <= 0}
+        >
+          ⬅ Prev
+        </ActionButton>
+        <span className="text-sm font-medium">
+          {selectedIndex !== null ? `Matching ${selectedIndex + 1}` : "No Selection"}
+        </span>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handleNext}
+          disabled={selectedIndex === null || selectedIndex >= savedStates.length - 1}
+        >
+          Next ➡
+        </ActionButton>
+      </div>
+
       <div>
         <h3 className="text-lg font-medium mb-2">History</h3>
         <div className="max-h-60 overflow-y-auto">
@@ -98,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div
                 key={`history-${index}`}
                 className={`px-3 py-2 rounded mb-1 text-sm flex justify-between items-center ${
-                  index === savedStates.length - 1
+                  index === selectedIndex
                     ? "bg-blue-100"
                     : "bg-gray-100"
                 }`}
@@ -113,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <ActionButton
                   variant="outline"
                   size="sm"
-                  onClick={() => onHistorySelect(index)}
+                  onClick={() => handleHistorySelect(index)}
                   className="ml-2"
                 >
                   Load
