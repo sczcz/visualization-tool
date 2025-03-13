@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
+import toast, { Toaster } from 'react-hot-toast';
 import Header from "./components/Header";
 import Sidebar from "./components/SideBar";
 import { KonvaCanvasRef } from "./KonvaCanvas"; // Import the ref type
@@ -34,11 +35,7 @@ export default function Home() {
     const lines = canvasRef.current.getLines();
     const freePoint = canvasRef.current.getFreePoint();
     const states = canvasRef.current.getSavedStates();
-    
-
-    
-    
-
+  
     setPointCount(points.length);
     setSegmentCount(lines.length);
     setFreePointCoords(freePoint ? {
@@ -82,6 +79,7 @@ export default function Home() {
     // Add current state to history
     setHistory(prev => [...prev, {}]);
     console.log("Clear canvas");
+    toast.success("Canvas cleared");
   }, [updateStatistics]);
   
   const handleUndo = useCallback(() => {
@@ -94,11 +92,16 @@ export default function Home() {
   
   const handleSave = useCallback(() => {
     console.log("Save canvas");
+    toast.success("Canvas saved");
   }, []);
   
   const handleLoadCanonical = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.makeCanonical();
+      updateStatistics();
+    }
     console.log("Load canonical");
-  }, []);
+  }, [updateStatistics]);
   
   // Define handlers for the Sidebar component
   const handleRandomGenerate = useCallback((numPoints: number) => {
@@ -111,6 +114,19 @@ export default function Home() {
     
     // Add to history
     setHistory(prev => [...prev, { numPoints }]);
+    toast.success(`Generated random matching with ${numPoints} points`);
+  }, [updateStatistics]);
+
+  const handleClearHistory = useCallback(() => {
+    
+    if (canvasRef.current) {
+      canvasRef.current.clearSavedStates(); // Clear states in the canvas component
+      updateStatistics(); // Update the UI
+    }
+
+    setHistory([{}]);
+    toast.success("History cleared");
+
   }, [updateStatistics]);
   
   const handleHistorySelect = useCallback((historyIndex: number) => {
@@ -124,10 +140,20 @@ export default function Home() {
     }
     
     console.log(`Loaded history at index ${historyIndex}`);
+    toast.success(`Loaded history at index ${historyIndex}`);
   }, [updateStatistics]);
+
+  const handleEdit = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.edit();
+      updateStatistics();
+    }
+
+  }, []);
 
   return (
     <div className="bg-white text-black p-4 w-full flex flex-col h-screen">
+      <Toaster position="bottom-left" />
       <Header
         activeMode={mode}
         onModeChange={handleModeChange}
@@ -136,6 +162,7 @@ export default function Home() {
         onSave={handleSave}
         onLoadCanonical={handleLoadCanonical}
         onGenerateAllMatchings={() => canvasRef.current?.generateAllMatchings()}
+        onEdit={handleEdit}
         canUndo={history.length > 1}
       />
       <div className="flex flex-1 overflow-hidden">
@@ -147,6 +174,7 @@ export default function Home() {
             mode={mode}
             onRandomGenerate={handleRandomGenerate}
             onHistorySelect={handleHistorySelect}
+            onClearHistory={handleClearHistory} 
             pointCount={pointCount}
             segmentCount={segmentCount}
             avgDistance={avgDistance}

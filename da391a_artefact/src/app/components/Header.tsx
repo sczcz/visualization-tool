@@ -10,6 +10,7 @@ interface HeaderProps {
   onSave: () => void;
   onLoadCanonical: () => void;
   onGenerateAllMatchings: () => void;
+  onEdit: () => void;
   canUndo: boolean;
 }
 
@@ -22,7 +23,9 @@ const Header: React.FC<HeaderProps> = ({
   onSave,
   onLoadCanonical,
   onGenerateAllMatchings,
+  onEdit,
   canUndo
+  
 }) => {
   // Combine classes manually
   const headerClasses = [" p-4 w-full", className].filter(Boolean).join(' ');
@@ -69,6 +72,14 @@ const Header: React.FC<HeaderProps> = ({
           >
             Generate All Matchings
           </ActionButton>
+          <ActionButton 
+            variant="outline" 
+            size="sm"
+            onClick={onEdit}
+          >
+            Edit
+          </ActionButton>
+          
         </div>
       </div>
       
