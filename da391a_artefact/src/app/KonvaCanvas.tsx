@@ -97,8 +97,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const allPoints = Array.from(pointMap.values());
   
     if (allPoints.length % 2 === 0) {
-      setError("Cannot generate matchings with an even number of points.");
-      setTimeout(() => setError(null), 2000);
+      toast.error("Cannot generate matchings with an even number of points.")
       return;
     }
   
