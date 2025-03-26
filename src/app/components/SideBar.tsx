@@ -151,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <div>
-                  Matching {index + 1}: {state.segmentCount / 2} segments
+                  Matching {index + 1}: {state.segmentCount} segments
                   {state.freePoint &&
                     `, Free Point at (${state.freePoint.x.toFixed(
                       1

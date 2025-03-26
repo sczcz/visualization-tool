@@ -68,7 +68,10 @@ const Header: React.FC<HeaderProps> = ({
           <ActionButton 
             variant="outline" 
             size="sm"
-            onClick={onGenerateAllMatchings}
+            onClick={() => {
+              window.alert("To ensure acceptable performance, the maximum number of matchings have been capped at 5000.");
+              onGenerateAllMatchings();
+            }}
           >
             Generate All Matchings
           </ActionButton>

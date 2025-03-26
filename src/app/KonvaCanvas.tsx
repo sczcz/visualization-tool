@@ -95,26 +95,29 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   
   const generateAllMatchings = () => {
     const allPoints = Array.from(pointMap.values());
+    const MAX_MATCHINGS = 5000;
   
     if (allPoints.length % 2 === 0) {
-      toast.error("Cannot generate matchings with an even number of points.")
+      toast.error("Cannot generate matchings with an even number of points.");
       return;
     }
   
-    const matchingsMap = new Map<string, Matching>(); // Store unique matchings
+    const matchingsMap = new Map<string, Matching>();
   
     console.log(`🔍 Generating all matchings for ${allPoints.length} points...`);
   
     const findMatchings = (remaining: Point[], segments: Segment[]) => {
+      // Stop early if we've reached the cap
+      if (matchingsMap.size >= MAX_MATCHINGS) return;
+  
       if (remaining.length === 1) {
-        // Ensure order-independent comparison
         const sortedSegments = [...segments].map(s => ({
           start: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
             ? s.start : s.end,
           end: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
             ? s.end : s.start,
-        })).sort((a, b) => 
-          a.start.x - b.start.x || a.start.y - b.start.y || 
+        })).sort((a, b) =>
+          a.start.x - b.start.x || a.start.y - b.start.y ||
           a.end.x - b.end.x || a.end.y - b.end.y
         );
   
@@ -141,6 +144,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
               remaining.filter((_, index) => index !== i && index !== j),
               [...segments, { start: first, end: second }]
             );
+  
+            if (matchingsMap.size >= MAX_MATCHINGS) return;
           }
         }
       }
@@ -150,7 +155,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   
     const finalMatchingsList = Array.from(matchingsMap.values());
     finalMatchingsList.forEach(saveMatching);
-  };
+  
+    if (matchingsMap.size >= MAX_MATCHINGS) {
+      toast(`⚠️ Capped at ${MAX_MATCHINGS} matchings`, { icon: '⏳' });
+    }
+  };  
           
 
   // Expose methods and data to parent component via ref
@@ -693,14 +702,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   };
 
   return (
-    <div style={{ textAlign: "center", marginTop: "20px" }}>
-      <button
-        onClick={saveState}
-        style={{ marginBottom: "10px", padding: "8px", cursor: "pointer" }}
-      >
-        Save Configuration
-      </button>
-
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "20px" }}>
       <div
         style={{
           display: "inline-block",
@@ -730,11 +732,10 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                 stroke="#ddd"
               />
             ))}
-
-            {/* Render lines with both visible thin line and invisible thick hitbox */}
+  
+            {/* Matching lines */}
             {lines.map((line, i) => (
               <React.Fragment key={`line-${i}`}>
-                {/* Invisible thick line for better hit detection */}
                 <Line
                   points={[line.start.x, line.start.y, line.end.x, line.end.y]}
                   stroke="rgba(0,0,0,0)"
@@ -743,35 +744,26 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                   onMouseEnter={() => handleLineHover(i)}
                   onMouseLeave={handleLineLeave}
                 />
-                {/* Visible thin line */}
                 <Line
                   points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-                  stroke={
-                    hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
-                  }
+                  stroke={hoveredLineIndex === i && locked ? "#ff6b6b" : "black"}
                   strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
-                  listening={false} // This line doesn't handle events
+                  listening={false}
                 />
               </React.Fragment>
             ))}
-
-            {/* Render points */}
+  
+            {/* Points */}
             {Array.from(pointMap.values()).map((point, i) => (
-              <Circle
-                key={`point-${i}`}
-                x={point.x}
-                y={point.y}
-                radius={5}
-                fill="blue"
-              />
+              <Circle key={`point-${i}`} x={point.x} y={point.y} radius={5} fill="blue" />
             ))}
-
-            {/* Render free point */}
+  
+            {/* Free point */}
             {freePoint && (
               <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
             )}
-
-            {/* Highlight pending point */}
+  
+            {/* Pending point */}
             {pendingPoint && (
               <Circle
                 x={pendingPoint.x}
@@ -782,8 +774,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                 strokeWidth={1}
               />
             )}
-
-            {/* Highlight freed points with different colors based on validity */}
+  
+            {/* Freed points */}
             {freedPoints.map((p, i) => {
               const isValidFlip = validFlipPoints.some(
                 (vp) => vp.x === p.x && vp.y === p.y
@@ -803,12 +795,20 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           </Layer>
         </Stage>
       </div>
-
-      {/* <div style={{ marginTop: "20px" }}>
-       
-      </div> */}
+  
+      {/* Save state button */}
+      <button
+        onClick={saveState}
+        style={{
+          marginTop: "12px",
+          padding: "8px 16px",
+          cursor: "pointer",
+        }}
+      >
+        Save Configuration
+      </button>
     </div>
-  );
+  );  
 });
 
 KonvaCanvas.displayName = "KonvaCanvas";
