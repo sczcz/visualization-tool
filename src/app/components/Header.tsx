@@ -122,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({
             onClick={() => onModeChange('target')}
             className="w-full"
           >
-            Target
+            Target [NOT IMPLEMENTED]
           </ActionButton>
         </div>
       </div>
