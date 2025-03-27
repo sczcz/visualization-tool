@@ -35,6 +35,7 @@ export default function Home() {
     const lines = canvasRef.current.getLines();
     const freePoint = canvasRef.current.getFreePoint();
     const states = canvasRef.current.getSavedStates();
+    
   
     setPointCount(points.length);
     setSegmentCount(lines.length);

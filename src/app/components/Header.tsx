@@ -1,5 +1,6 @@
 import React from 'react';
 import ActionButton from './ActionButton';
+import toast from 'react-hot-toast';
 
 interface HeaderProps {
   className?: string;
@@ -69,7 +70,18 @@ const Header: React.FC<HeaderProps> = ({
             variant="outline" 
             size="sm"
             onClick={() => {
-              window.alert("To ensure acceptable performance, the maximum number of matchings have been capped at 5000.");
+                toast(
+                  "To ensure acceptable performance, the maximum number of matchings have been capped at 5000.",
+                  {
+                  duration: 5000,
+                  position: "top-center",
+                  style: {
+                    backgroundColor: "yellow",
+                  },
+                  }
+                );
+              
+
               onGenerateAllMatchings();
             }}
           >

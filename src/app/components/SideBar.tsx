@@ -176,7 +176,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         <ActionButton
           variant="outline"
           size="sm"
-          onClick={onClearHistory} // Call the clear function
+          onClick={() => {
+            onClearHistory(); // Call the clear function
+            setSelectedIndex(null); // Reset the selected index
+          }}
           className="mt-2"
         >
           Clear History
