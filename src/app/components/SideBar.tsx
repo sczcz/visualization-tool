@@ -138,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div>
-        <h3 className="text-lg font-medium mb-2">History</h3>
+        <h3 className="text-lg font-medium mb-2">Matchings</h3>
         <div className="max-h-60 overflow-y-auto">
           {savedStates.length > 0 ? (
             savedStates.map((state, index) => (

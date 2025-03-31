@@ -1,15 +1,19 @@
 "use client";
 
 import React from "react";
+import ActionButton from "./components/ActionButton";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
-import { toast } from 'react-hot-toast';
+import { toast } from "react-hot-toast";
 import { snapToGrid, doesIntersect } from "./utils/MathUtils";
 import {
   wouldCreateCollinearity,
   wouldCrossExistingSegments,
 } from "./utils/CanvasUtils";
 import { Point, Segment, Matching } from "./types";
+import tippy from "tippy.js";
+import "tippy.js/dist/tippy.css";
+import Tippy from "@tippyjs/react";
 
 const GRID_SIZE = 20;
 
@@ -22,7 +26,7 @@ export interface KonvaCanvasRef {
   }[];
   getFreePoint: () => { x: number; y: number } | null;
   getSavedStates: () => any[];
-  clearSavedStates: () => void; 
+  clearSavedStates: () => void;
   clearCanvas: () => void;
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
@@ -42,7 +46,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>(
     []
   );
-  // const [error, setError] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
   const [flashRed, setFlashRed] = useState(false);
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [validFlipPoints, setValidFlipPoints] = useState<
@@ -53,14 +59,20 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     y: number;
   } | null>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastPointerPosition, setLastPointerPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   const saveMatching = (matching: Matching) => {
     if (!matching || !matching.segments || !matching.pointMap) {
       console.error("Invalid matching data:", matching);
       return;
     }
-  
+
     const GRID_ROWS = 600 / GRID_SIZE;
-  
+
     const uniqueLines = Array.from(
       new Map(
         matching.segments.map((line) => [
@@ -72,7 +84,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         ])
       ).values()
     );
-  
+
     const newState = {
       segmentCount: uniqueLines.length,
       lines: uniqueLines.map(({ start, end }) => ({
@@ -86,43 +98,56 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           }
         : null,
     };
-  
+
     console.log("🔹 Saving Matching", savedStates.length + 1);
     console.table(newState.lines);
-  
+
     setSavedStates((prevStates) => [...prevStates, newState]);
   };
-  
+
   const generateAllMatchings = () => {
     const allPoints = Array.from(pointMap.values());
     const MAX_MATCHINGS = 5000;
-  
+
     if (allPoints.length % 2 === 0) {
       toast.error("Cannot generate matchings with an even number of points.");
       return;
     }
-  
+
     const matchingsMap = new Map<string, Matching>();
-  
-    console.log(`🔍 Generating all matchings for ${allPoints.length} points...`);
-  
+
+    console.log(
+      `🔍 Generating all matchings for ${allPoints.length} points...`
+    );
+
     const findMatchings = (remaining: Point[], segments: Segment[]) => {
       // Stop early if we've reached the cap
       if (matchingsMap.size >= MAX_MATCHINGS) return;
-  
+
       if (remaining.length === 1) {
-        const sortedSegments = [...segments].map(s => ({
-          start: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
-            ? s.start : s.end,
-          end: s.start.x < s.end.x || (s.start.x === s.end.x && s.start.y < s.end.y)
-            ? s.end : s.start,
-        })).sort((a, b) =>
-          a.start.x - b.start.x || a.start.y - b.start.y ||
-          a.end.x - b.end.x || a.end.y - b.end.y
-        );
-  
+        const sortedSegments = [...segments]
+          .map((s) => ({
+            start:
+              s.start.x < s.end.x ||
+              (s.start.x === s.end.x && s.start.y < s.end.y)
+                ? s.start
+                : s.end,
+            end:
+              s.start.x < s.end.x ||
+              (s.start.x === s.end.x && s.start.y < s.end.y)
+                ? s.end
+                : s.start,
+          }))
+          .sort(
+            (a, b) =>
+              a.start.x - b.start.x ||
+              a.start.y - b.start.y ||
+              a.end.x - b.end.x ||
+              a.end.y - b.end.y
+          );
+
         const matchingString = JSON.stringify(sortedSegments);
-  
+
         if (!matchingsMap.has(matchingString)) {
           matchingsMap.set(matchingString, {
             pointMap: new Map(pointMap),
@@ -132,35 +157,34 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         }
         return;
       }
-  
+
       for (let i = 0; i < remaining.length - 1; i++) {
         const first = remaining[i];
-  
+
         for (let j = i + 1; j < remaining.length; j++) {
           const second = remaining[j];
-  
+
           if (!wouldCrossExistingSegments(first, second, segments)) {
             findMatchings(
               remaining.filter((_, index) => index !== i && index !== j),
               [...segments, { start: first, end: second }]
             );
-  
+
             if (matchingsMap.size >= MAX_MATCHINGS) return;
           }
         }
       }
     };
-  
+
     findMatchings(allPoints, []);
-  
+
     const finalMatchingsList = Array.from(matchingsMap.values());
     finalMatchingsList.forEach(saveMatching);
-  
+
     if (matchingsMap.size >= MAX_MATCHINGS) {
-      toast(`⚠️ Capped at ${MAX_MATCHINGS} matchings`, { icon: '⏳' });
+      toast(`⚠️ Capped at ${MAX_MATCHINGS} matchings`, { icon: "⏳" });
     }
-  };  
-          
+  };
 
   // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -198,7 +222,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreedPoints([]);
       setValidFlipPoints([]);
       setPendingPoint(null);
-      
 
       const gridWidth = Math.floor(800 / GRID_SIZE);
       const gridHeight = Math.floor(600 / GRID_SIZE);
@@ -219,7 +242,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       shuffledGrid.sort(() => Math.random() - 0.5);
 
       if (numPoints > shuffledGrid.length) {
-        toast.error("Cannot generate more points than available grid positions!");
+        toast.error(
+          "Cannot generate more points than available grid positions!"
+        );
         return;
       }
 
@@ -426,18 +451,20 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFreePoint(newFreePoint);
 
       console.log("Transformed to canonical matching");
-      toast.success("Successfully transformed to canonical matching!")
+      toast.success("Successfully transformed to canonical matching!");
     },
   }));
 
-  const handleCanvasClick = (e: any) => {
-    if (locked) return;
-
+  const handleCanvasClickAction = (e: any) => {
+    // Your existing handleCanvasClick code, without the button check
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y, GRID_SIZE);
+    const adjustedX = (pointerPos.x - position.x) / scale;
+    const adjustedY = (pointerPos.y - position.y) / scale;
+
+    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
     const pointKey = `${snappedPos.x},${snappedPos.y}`;
 
     if (pointMap.has(pointKey)) {
@@ -454,7 +481,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       toast.error("Cannot create collinear points!");
       return;
     }
-    // In handleCanvasClick function, modify this section:
+
     if (pendingPoint) {
       // Create proper Point objects
       const startPoint = {
@@ -560,7 +587,96 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
     setLocked(true);
     setPendingPoint(null);
-    toast.success('Successfully saved matching!')
+    toast.success("Successfully saved matching!");
+  };
+
+  // Handle mouse wheel event for zooming
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault();
+
+    const stage = e.target.getStage();
+    const oldScale = scale;
+    const pointer = stage.getPointerPosition();
+
+    const mousePointTo = {
+      x: (pointer.x - position.x) / oldScale,
+      y: (pointer.y - position.y) / oldScale,
+    };
+
+    // Calculate new scale: zoom in when scrolling up, zoom out when scrolling down
+    const newScale = e.evt.deltaY < 0 ? oldScale * 1.1 : oldScale / 1.1;
+
+    // Limit zoom levels (optional)
+    const limitedScale = Math.min(Math.max(newScale, 0.3), 5);
+
+    // Calculate new position so we zoom to where the mouse is
+    const newPos = {
+      x: pointer.x - mousePointTo.x * limitedScale,
+      y: pointer.y - mousePointTo.y * limitedScale,
+    };
+
+    setScale(limitedScale);
+    setPosition(newPos);
+  };
+
+  const handleMouseDown = (e: any) => {
+    const buttonCode = e.evt.button;
+
+    // Middle button for panning (button code 1)
+    if (buttonCode === 1) {
+      e.evt.preventDefault();
+      setIsDragging(true);
+
+      const stage = e.target.getStage();
+      const pointerPos = stage.getPointerPosition();
+      setLastPointerPosition(pointerPos);
+      return;
+    }
+
+    // Left button for interactions (button code 0)
+    if (buttonCode === 0) {
+      if (locked) {
+        // Call your flip handler
+        handleFlipAction(e);
+      } else {
+        // Call your canvas click handler
+        handleCanvasClickAction(e);
+      }
+    }
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isDragging || !lastPointerPosition) return;
+
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+
+    // Calculate how far the mouse has moved
+    const dx = pointerPos.x - lastPointerPosition.x;
+    const dy = pointerPos.y - lastPointerPosition.y;
+
+    // Update position
+    setPosition((prev) => ({
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
+
+    // Update last position
+    setLastPointerPosition(pointerPos);
+  };
+
+  const handleMouseUp = (e: any) => {
+    if (e.evt.button === 1) {
+      setIsDragging(false);
+      setLastPointerPosition(null);
+    }
+  };
+
+  // Add mouseout handler to stop dragging if mouse leaves the canvas
+  const handleMouseOut = () => {
+    setIsDragging(false);
+    setLastPointerPosition(null);
   };
 
   // Check if a potential flip would be valid
@@ -645,14 +761,18 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     setHoveredLineIndex(null);
   };
 
-  const handleFlip = (e: any) => {
+  const handleFlipAction = (e: any) => {
     if (!locked || freedPoints.length !== 2 || !freePoint) return;
 
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    const snappedPos = snapToGrid(pointerPos.x, pointerPos.y, GRID_SIZE);
+    // Adjust for scale and position
+    const adjustedX = (pointerPos.x - position.x) / scale;
+    const adjustedY = (pointerPos.y - position.y) / scale;
+
+    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
 
     // Check if the clicked point is one of the freed points
     const isFreedPoint = freedPoints.some(
@@ -702,7 +822,14 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "20px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        marginTop: "20px",
+      }}
+    >
       <div
         style={{
           display: "inline-block",
@@ -711,10 +838,22 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         }}
       >
         <Stage
-          width={800}
-          height={600}
-          onClick={locked ? handleFlip : handleCanvasClick}
-          style={{ backgroundColor: "#f9f9f9" }}
+          width={1200}
+          height={700}
+          // onClick={locked ? handleFlip : handleCanvasClick}
+          onWheel={handleWheel}
+          scaleX={scale}
+          scaleY={scale}
+          x={position.x}
+          y={position.y}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseOut}
+          style={{
+            backgroundColor: "#f9f9f9",
+            cursor: isDragging ? "grabbing" : "default",
+          }}
         >
           <Layer>
             {/* Grid lines */}
@@ -732,7 +871,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                 stroke="#ddd"
               />
             ))}
-  
+
             {/* Matching lines */}
             {lines.map((line, i) => (
               <React.Fragment key={`line-${i}`}>
@@ -746,23 +885,31 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                 />
                 <Line
                   points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-                  stroke={hoveredLineIndex === i && locked ? "#ff6b6b" : "black"}
+                  stroke={
+                    hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
+                  }
                   strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
                   listening={false}
                 />
               </React.Fragment>
             ))}
-  
+
             {/* Points */}
             {Array.from(pointMap.values()).map((point, i) => (
-              <Circle key={`point-${i}`} x={point.x} y={point.y} radius={5} fill="blue" />
+              <Circle
+                key={`point-${i}`}
+                x={point.x}
+                y={point.y}
+                radius={5}
+                fill="blue"
+              />
             ))}
-  
+
             {/* Free point */}
             {freePoint && (
               <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
             )}
-  
+
             {/* Pending point */}
             {pendingPoint && (
               <Circle
@@ -774,7 +921,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
                 strokeWidth={1}
               />
             )}
-  
+
             {/* Freed points */}
             {freedPoints.map((p, i) => {
               const isValidFlip = validFlipPoints.some(
@@ -795,20 +942,50 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           </Layer>
         </Stage>
       </div>
-  
-      {/* Save state button */}
-      <button
-        onClick={saveState}
-        style={{
-          marginTop: "12px",
-          padding: "8px 16px",
-          cursor: "pointer",
-        }}
-      >
-        Save Configuration
-      </button>
+      {/* Action buttons */}
+      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setScale((prev) => Math.max(prev / 1.2, 0.3));
+          }}
+        >
+          Zoom Out
+        </ActionButton>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setScale(1);
+            setPosition({ x: 0, y: 0 });
+          }}
+        >
+          Reset View
+        </ActionButton>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setScale((prev) => Math.min(prev * 1.2, 5));
+          }}
+        >
+          Zoom In
+        </ActionButton>
+      </div>
+
+      <Tippy content="Save the current matching state">
+        <div>
+        <ActionButton variant="outline" size="sm" onClick={saveState}>
+          Add Matching
+        </ActionButton>
+        </div>
+      </Tippy>
+        
     </div>
-  );  
+  );
 });
 
 KonvaCanvas.displayName = "KonvaCanvas";
