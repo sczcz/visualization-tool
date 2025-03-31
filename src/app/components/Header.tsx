@@ -40,6 +40,8 @@ const Header: React.FC<HeaderProps> = ({
             variant="outline" 
             size="sm"
             onClick={onSave}
+            tooltip='Save current matching to file'
+            tooltipId='save-tooltip'
           >
             Save
           </ActionButton>
@@ -47,6 +49,8 @@ const Header: React.FC<HeaderProps> = ({
             variant="outline" 
             size="sm"
             onClick={onClear}
+            tooltip='Clear canvas'
+            tooltipId='clear-tooltip'
           >
             Clear
           </ActionButton>
@@ -56,6 +60,8 @@ const Header: React.FC<HeaderProps> = ({
             onClick={onUndo}
             disabled={!canUndo}
             className={!canUndo ? "opacity-50" : ""}
+            tooltip='Undo last action'
+            tooltipId='undo-tooltip'
           >
             Undo
           </ActionButton>
@@ -63,6 +69,8 @@ const Header: React.FC<HeaderProps> = ({
             variant="outline" 
             size="sm"
             onClick={onLoadCanonical}
+            tooltip='Load canonical matching'
+            tooltipId='load-canonical-tooltip'
           >
             Canonical
           </ActionButton>
@@ -84,6 +92,8 @@ const Header: React.FC<HeaderProps> = ({
 
               onGenerateAllMatchings();
             }}
+            tooltip='Generate all matchings'
+            tooltipId='generate-all-matchings-tooltip'
           >
             Generate All Matchings
           </ActionButton>
@@ -91,6 +101,8 @@ const Header: React.FC<HeaderProps> = ({
             variant="outline" 
             size="sm"
             onClick={onEdit}
+            tooltip='Edit the current matching'
+            tooltipId='edit-matching-tooltip'
           >
             Edit
           </ActionButton>
@@ -105,6 +117,8 @@ const Header: React.FC<HeaderProps> = ({
             size="md"
             onClick={() => onModeChange('manual')}
             className="w-full"
+            tooltip='Manual mode: click to add points on the canvas'
+            tooltipId='manual-mode-tooltip'
           >
             Manual
           </ActionButton>
@@ -113,6 +127,8 @@ const Header: React.FC<HeaderProps> = ({
             size="md"
             onClick={() => onModeChange('auto')}
             className="w-full"
+            tooltip='Auto mode: generate matchings automatically based on number of points'
+            tooltipId='auto-mode-tooltip'
           >
             Auto
           </ActionButton>
@@ -121,6 +137,7 @@ const Header: React.FC<HeaderProps> = ({
             size="md"
             onClick={() => onModeChange('target')}
             className="w-full"
+            
           >
             Target [NOT IMPLEMENTED]
           </ActionButton>

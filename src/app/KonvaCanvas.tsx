@@ -11,9 +11,7 @@ import {
   wouldCrossExistingSegments,
 } from "./utils/CanvasUtils";
 import { Point, Segment, Matching } from "./types";
-import tippy from "tippy.js";
-import "tippy.js/dist/tippy.css";
-import Tippy from "@tippyjs/react";
+
 
 const GRID_SIZE = 20;
 
@@ -950,6 +948,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           onClick={() => {
             setScale((prev) => Math.max(prev / 1.2, 0.3));
           }}
+          tooltip="Zoom out the canvas (or use mouse wheel down on canvas)"
         >
           Zoom Out
         </ActionButton>
@@ -961,6 +960,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
             setScale(1);
             setPosition({ x: 0, y: 0 });
           }}
+          tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
         >
           Reset View
         </ActionButton>
@@ -971,19 +971,21 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           onClick={() => {
             setScale((prev) => Math.min(prev * 1.2, 5));
           }}
+          tooltip="Zoom in the canvas (or use mouse wheel up on canvas)"
         >
           Zoom In
         </ActionButton>
       </div>
 
-      <Tippy content="Save the current matching state">
-        <div>
-        <ActionButton variant="outline" size="sm" onClick={saveState}>
+      <div>
+        <ActionButton 
+        variant="outline" 
+        size="sm" 
+        onClick={saveState}
+        tooltip="Save the current matching state">
           Add Matching
         </ActionButton>
-        </div>
-      </Tippy>
-        
+      </div>
     </div>
   );
 });

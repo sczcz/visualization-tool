@@ -15,7 +15,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
-    "react-konva": "^19.0.3"
+    "react-konva": "^19.0.3",
+    "react-tooltip": "^5.28.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

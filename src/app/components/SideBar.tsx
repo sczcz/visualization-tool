@@ -121,6 +121,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           size="sm"
           onClick={handlePrev}
           disabled={selectedIndex === null || selectedIndex <= 0}
+          tooltip="Previous matching from the history"
+          tooltipId="prev-matching-tooltip"
         >
           ⬅ Prev
         </ActionButton>
@@ -132,6 +134,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           size="sm"
           onClick={handleNext}
           disabled={selectedIndex === null || selectedIndex >= savedStates.length - 1}
+          tooltip="Next matching from the history"
+          tooltipId="next-matching-tooltip"
         >
           Next ➡
         </ActionButton>
@@ -180,6 +184,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClearHistory(); // Call the clear function
             setSelectedIndex(null); // Reset the selected index
           }}
+          tooltip="Clear all matchings from the history"
+          tooltipId="clear-history-tooltip"
           className="mt-2"
         >
           Clear History
