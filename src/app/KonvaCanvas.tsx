@@ -11,7 +11,7 @@ import {
 } from "./utils/CanvasUtils";
 import { Point, Segment, Matching } from "./types";
 
-const GRID_SIZE = 50;
+const GRID_SIZE = 20;
 
 // Define the ref interface
 export interface KonvaCanvasRef {
