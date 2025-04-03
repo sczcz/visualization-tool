@@ -921,191 +921,180 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        marginTop: "20px",
-      }}
-    >
-      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={handleUndo}
-          tooltip="Undo the last action (or use Ctrl+Z)"
-        >
-          Undo
-        </ActionButton>
+    <div className="flex flex-col items-center mt-5">
+      <div className="mt-2 flex gap-2 mb-2">
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={handleUndo}
+        tooltip="Undo the last action (or use Ctrl+Z)"
+      >
+        Undo
+      </ActionButton>
 
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={handleRedo}
-          tooltip="Redo the last undone action (or use Ctrl+Shift+Z)"
-        >
-          Redo
-        </ActionButton>
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={handleRedo}
+        tooltip="Redo the last undone action (or use Ctrl+Shift+Z)"
+      >
+        Redo
+      </ActionButton>
       </div>
       <div
-        style={{
-          display: "inline-block",
-          border: flashRed ? "4px solid red" : "2px solid black",
-          transition: "border 0.3s ease",
-        }}
+      className={`inline-block border ${
+        flashRed ? "border-4 border-red-500" : "border-2 border-black"
+      } transition-all duration-300`}
       >
-        <Stage
-          width={1200}
-          height={700}
-          // onClick={locked ? handleFlip : handleCanvasClick}
-          onWheel={handleWheel}
-          scaleX={scale}
-          scaleY={scale}
-          x={position.x}
-          y={position.y}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseOut}
-          style={{
-            backgroundColor: "#f9f9f9",
-            cursor: isDragging ? "grabbing" : "default",
-          }}
-        >
-          <Layer>
-            {/* Grid lines */}
-            {[...Array(1200 / GRID_SIZE)].map((_, i) => (
-              <Line
-                key={`grid-v-${i}`}
-                points={[i * GRID_SIZE, 0, i * GRID_SIZE, 700]}
-                stroke="#ddd"
-              />
-            ))}
-            {[...Array(700 / GRID_SIZE)].map((_, i) => (
-              <Line
-                key={`grid-h-${i}`}
-                points={[0, i * GRID_SIZE, 1200, i * GRID_SIZE]}
-                stroke="#ddd"
-              />
-            ))}
+      <Stage
+        width={1200}
+        height={700}
+        onWheel={handleWheel}
+        scaleX={scale}
+        scaleY={scale}
+        x={position.x}
+        y={position.y}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseOut}
+        className={`bg-gray-100 ${
+        isDragging ? "cursor-grabbing" : "cursor-default"
+        }`}
+      >
+        <Layer>
+        {/* Grid lines */}
+        {[...Array(1200 / GRID_SIZE)].map((_, i) => (
+          <Line
+          key={`grid-v-${i}`}
+          points={[i * GRID_SIZE, 0, i * GRID_SIZE, 700]}
+          stroke="#ddd"
+          />
+        ))}
+        {[...Array(700 / GRID_SIZE)].map((_, i) => (
+          <Line
+          key={`grid-h-${i}`}
+          points={[0, i * GRID_SIZE, 1200, i * GRID_SIZE]}
+          stroke="#ddd"
+          />
+        ))}
 
-            {/* Matching lines */}
-            {lines.map((line, i) => (
-              <React.Fragment key={`line-${i}`}>
-                <Line
-                  points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-                  stroke="rgba(0,0,0,0)"
-                  strokeWidth={15}
-                  onClick={() => handleLineClick(i)}
-                  onMouseEnter={() => handleLineHover(i)}
-                  onMouseLeave={handleLineLeave}
-                />
-                <Line
-                  points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-                  stroke={
-                    hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
-                  }
-                  strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
-                  listening={false}
-                />
-              </React.Fragment>
-            ))}
+        {/* Matching lines */}
+        {lines.map((line, i) => (
+          <React.Fragment key={`line-${i}`}>
+          <Line
+            points={[line.start.x, line.start.y, line.end.x, line.end.y]}
+            stroke="rgba(0,0,0,0)"
+            strokeWidth={30}
+            onClick={() => handleLineClick(i)}
+            onMouseEnter={() => handleLineHover(i)}
+            onMouseLeave={handleLineLeave}
+          />
+          <Line
+            points={[line.start.x, line.start.y, line.end.x, line.end.y]}
+            stroke={
+            hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
+            }
+            strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
+            listening={false}
+          />
+          </React.Fragment>
+        ))}
 
-            {/* Points */}
-            {Array.from(pointMap.values()).map((point, i) => (
-              <Circle
-                key={`point-${i}`}
-                x={point.x}
-                y={point.y}
-                radius={5}
-                fill="blue"
-              />
-            ))}
+        {/* Points */}
+        {Array.from(pointMap.values()).map((point, i) => (
+          <Circle
+          key={`point-${i}`}
+          x={point.x}
+          y={point.y}
+          radius={5}
+          fill="blue"
+          />
+        ))}
 
-            {/* Free point */}
-            {freePoint && (
-              <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
-            )}
+        {/* Free point */}
+        {freePoint && (
+          <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
+        )}
 
-            {/* Pending point */}
-            {pendingPoint && (
-              <Circle
-                x={pendingPoint.x}
-                y={pendingPoint.y}
-                radius={6}
-                fill="purple"
-                stroke="black"
-                strokeWidth={1}
-              />
-            )}
+        {/* Pending point */}
+        {pendingPoint && (
+          <Circle
+          x={pendingPoint.x}
+          y={pendingPoint.y}
+          radius={6}
+          fill="purple"
+          stroke="black"
+          strokeWidth={1}
+          />
+        )}
 
-            {/* Freed points */}
-            {freedPoints.map((p, i) => {
-              const isValidFlip = validFlipPoints.some(
-                (vp) => vp.x === p.x && vp.y === p.y
-              );
-              return (
-                <Circle
-                  key={`freed-${i}`}
-                  x={p.x}
-                  y={p.y}
-                  radius={7}
-                  fill={isValidFlip ? "green" : "orange"}
-                  stroke="black"
-                  strokeWidth={1}
-                />
-              );
-            })}
-          </Layer>
-        </Stage>
+        {/* Freed points */}
+        {freedPoints.map((p, i) => {
+          const isValidFlip = validFlipPoints.some(
+          (vp) => vp.x === p.x && vp.y === p.y
+          );
+          return (
+          <Circle
+            key={`freed-${i}`}
+            x={p.x}
+            y={p.y}
+            radius={7}
+            fill={isValidFlip ? "green" : "orange"}
+            stroke="black"
+            strokeWidth={1}
+          />
+          );
+        })}
+        </Layer>
+      </Stage>
       </div>
       {/* Action buttons */}
-      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setScale((prev) => Math.max(prev / 1.2, 0.3));
-          }}
-          tooltip="Zoom out the canvas (or use mouse wheel down on canvas)"
-        >
-          Zoom Out
-        </ActionButton>
+      <div className="mt-3 flex gap-2">
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={() => {
+        setScale((prev) => Math.max(prev / 1.2, 0.3));
+        }}
+        tooltip="Zoom out the canvas (or use mouse wheel down on canvas)"
+      >
+        Zoom Out
+      </ActionButton>
 
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setScale(1);
-            setPosition({ x: 0, y: 0 });
-          }}
-          tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
-        >
-          Reset View
-        </ActionButton>
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={() => {
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
+        }}
+        tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
+      >
+        Reset View
+      </ActionButton>
 
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setScale((prev) => Math.min(prev * 1.2, 5));
-          }}
-          tooltip="Zoom in the canvas (or use mouse wheel up on canvas)"
-        >
-          Zoom In
-        </ActionButton>
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={() => {
+        setScale((prev) => Math.min(prev * 1.2, 5));
+        }}
+        tooltip="Zoom in the canvas (or use mouse wheel up on canvas)"
+      >
+        Zoom In
+      </ActionButton>
       </div>
 
-      <div>
-        <ActionButton
-          variant="outline"
-          size="sm"
-          onClick={saveState}
-          tooltip="Save the current matching state"
-        >
-          Add Matching
-        </ActionButton>
+      <div className="mt-3">
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={saveState}
+        tooltip="Save the current matching state"
+      >
+        Add Matching
+      </ActionButton>
       </div>
     </div>
   );
