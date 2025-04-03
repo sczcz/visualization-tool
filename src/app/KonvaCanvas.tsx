@@ -63,6 +63,92 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     y: number;
   } | null>(null);
 
+   // New states and refs for undo/redo functionality
+   const history = React.useRef<any[]>([]);
+   const historyStep = React.useRef(0);
+  
+   const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+      // Ctrl+Z for undo
+      handleUndo();
+    } else if (e.ctrlKey && e.key === 'Z' && e.shiftKey) {
+      // Ctrl+Shift+Z for redo
+      handleRedo();
+    }
+  };
+  
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+   const handleUndo = () => {
+    if (historyStep.current === 0) {
+      return;
+    }
+    historyStep.current -= 1;
+    const previous = history.current[historyStep.current];
+    loadStateFromHistory(previous);
+  };
+
+  const handleRedo = () => {
+    if (historyStep.current === history.current.length - 1) {
+      return;
+    }
+    historyStep.current += 1;
+    const next = history.current[historyStep.current];
+    loadStateFromHistory(next);
+  };
+  const loadStateFromHistory = (state: any) => {
+    setLines(state.lines);
+    setPointMap(new Map(state.pointMap));
+    setFreePoint(state.freePoint);
+    setSavedStates(state.savedStates);
+    setLocked(state.locked);
+    setFreedPoints(state.freedPoints);
+    setScale(state.scale);
+    setPosition(state.position);
+    setFlashRed(state.flashRed);
+    setHoveredLineIndex(state.hoveredLineIndex);
+    setValidFlipPoints(state.validFlipPoints);
+    setPendingPoint(state.pendingPoint);
+    setIsDragging(state.isDragging);
+    setLastPointerPosition(state.lastPointerPosition);
+  };
+
+  const saveStateToHistory = () => {
+    const newState = {
+      lines,
+      pointMap: Array.from(pointMap.entries()),
+      freePoint,
+      savedStates,
+      locked,
+      freedPoints,
+      scale,
+      position,
+      flashRed,
+      hoveredLineIndex,
+      validFlipPoints,
+      pendingPoint,
+      isDragging,
+      lastPointerPosition,
+    };
+
+    // Remove all states after current step
+    history.current = history.current.slice(0, historyStep.current + 1);
+    // Push the new state
+    history.current = history.current.concat([newState]);
+    historyStep.current += 1;
+
+    // Limit history to the last 20 states
+    if (history.current.length > 20) {
+      history.current.shift();
+      historyStep.current -= 1;
+    }
+  };
+
   const saveMatching = (matching: Matching) => {
     if (!matching || !matching.segments || !matching.pointMap) {
       console.error("Invalid matching data:", matching);
@@ -101,6 +187,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     console.table(newState.lines);
 
     setSavedStates((prevStates) => [...prevStates, newState]);
+
+    saveStateToHistory();
   };
 
   const generateAllMatchings = () => {
@@ -200,6 +288,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     },
     clearSavedStates: () => {
       setSavedStates([]);
+      saveStateToHistory();
     },
     clearCanvas: () => {
       setPointMap(new Map());
@@ -210,6 +299,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setFlashRed(false);
       setValidFlipPoints([]);
       setPendingPoint(null);
+      saveStateToHistory();
     },
     generateRandomPoints: (numPoints: number) => {
       // Clear everything before generating
@@ -335,6 +425,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
       console.log("Generated Points:", finalPointsArray);
       console.log("Generated Segments:", newLines);
+      saveStateToHistory();
     },
     loadState: (stateIndex: number) => {
       if (stateIndex >= 0 && stateIndex < savedStates.length) {
@@ -450,11 +541,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
       console.log("Transformed to canonical matching");
       toast.success("Successfully transformed to canonical matching!");
+      saveStateToHistory()
     },
   }));
 
   const handleCanvasClickAction = (e: any) => {
-    // Your existing handleCanvasClick code, without the button check
+    saveStateToHistory()
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
@@ -828,6 +920,25 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         marginTop: "20px",
       }}
     >
+      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handleUndo}
+          tooltip="Undo the last action (or use Ctrl+Z)"
+        >
+          Undo
+        </ActionButton>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handleRedo}
+          tooltip="Redo the last undone action (or use Ctrl+Shift+Z)"
+        >
+          Redo
+        </ActionButton>
+      </div>
       <div
         style={{
           display: "inline-block",
