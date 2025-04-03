@@ -557,6 +557,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
     const pointKey = `${snappedPos.x},${snappedPos.y}`;
 
+
+    
+
     if (pointMap.has(pointKey)) {
       toast.error("Cannot place points on top of each other!");
       return;
@@ -966,17 +969,17 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         >
           <Layer>
             {/* Grid lines */}
-            {[...Array(800 / GRID_SIZE)].map((_, i) => (
+            {[...Array(1200 / GRID_SIZE)].map((_, i) => (
               <Line
                 key={`grid-v-${i}`}
-                points={[i * GRID_SIZE, 0, i * GRID_SIZE, 600]}
+                points={[i * GRID_SIZE, 0, i * GRID_SIZE, 700]}
                 stroke="#ddd"
               />
             ))}
-            {[...Array(600 / GRID_SIZE)].map((_, i) => (
+            {[...Array(700 / GRID_SIZE)].map((_, i) => (
               <Line
                 key={`grid-h-${i}`}
-                points={[0, i * GRID_SIZE, 800, i * GRID_SIZE]}
+                points={[0, i * GRID_SIZE, 1200, i * GRID_SIZE]}
                 stroke="#ddd"
               />
             ))}
