@@ -5,13 +5,12 @@ import ActionButton from "./components/ActionButton";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { toast } from "react-hot-toast";
-import { snapToGrid, doesIntersect } from "./utils/MathUtils";
+import { snapToGrid, doesIntersect, isOnGrid} from "./utils/MathUtils";
 import {
   wouldCreateCollinearity,
   wouldCrossExistingSegments,
 } from "./utils/CanvasUtils";
 import { Point, Segment, Matching } from "./types";
-
 
 const GRID_SIZE = 20;
 
@@ -63,28 +62,28 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     y: number;
   } | null>(null);
 
-   // New states and refs for undo/redo functionality
-   const history = React.useRef<any[]>([]);
-   const historyStep = React.useRef(0);
-  
-   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+  // New states and refs for undo/redo functionality
+  const history = React.useRef<any[]>([]);
+  const historyStep = React.useRef(0);
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
       // Ctrl+Z for undo
       handleUndo();
-    } else if (e.ctrlKey && e.key === 'Z' && e.shiftKey) {
+    } else if (e.ctrlKey && e.key === "Z" && e.shiftKey) {
       // Ctrl+Shift+Z for redo
       handleRedo();
     }
   };
-  
+
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
-   const handleUndo = () => {
+  const handleUndo = () => {
     if (historyStep.current === 0) {
       return;
     }
@@ -541,12 +540,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
       console.log("Transformed to canonical matching");
       toast.success("Successfully transformed to canonical matching!");
-      saveStateToHistory()
+      saveStateToHistory();
     },
   }));
 
   const handleCanvasClickAction = (e: any) => {
-    saveStateToHistory()
+    saveStateToHistory();
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
@@ -557,8 +556,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
     const pointKey = `${snappedPos.x},${snappedPos.y}`;
 
+    // Get the canvas dimensions
+    const canvasWidth = stage.width();
+    const canvasHeight = stage.height();
 
-    
+    // Check if the snapped position is on the visible grid
+    if (!isOnGrid(snappedPos, GRID_SIZE, canvasWidth, canvasHeight)) {
+      toast.error("Points can only be placed on visible grid lines.");
+      return;
+    }
 
     if (pointMap.has(pointKey)) {
       toast.error("Cannot place points on top of each other!");
@@ -1092,11 +1098,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       </div>
 
       <div>
-        <ActionButton 
-        variant="outline" 
-        size="sm" 
-        onClick={saveState}
-        tooltip="Save the current matching state">
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={saveState}
+          tooltip="Save the current matching state"
+        >
           Add Matching
         </ActionButton>
       </div>

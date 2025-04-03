@@ -6,6 +6,14 @@ export const snapToGrid = (x: number, y: number, GRID_SIZE: number) => ({
     y: Math.round(y / GRID_SIZE) * GRID_SIZE,
 });
 
+export const isOnGrid = (point: { x: number, y: number }, GRID_SIZE: number, canvasWidth: number, canvasHeight: number) => {
+  // Check if the point is within the visible canvas bounds
+  const isWithinBounds = (point.x >= 0 && point.x <= canvasWidth && point.y >= 0 && point.y <= canvasHeight);
+  // Check if the point is on a grid line
+  const isOnGridLine = (point.x % GRID_SIZE === 0) && (point.y % GRID_SIZE === 0);
+  return isWithinBounds && isOnGridLine;
+};
+
 export const areCollinear = (p1: Point, p2: Point, p3: Point) => {
     const area = Math.abs(
       (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
