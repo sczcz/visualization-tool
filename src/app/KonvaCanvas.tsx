@@ -154,7 +154,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    const GRID_ROWS = 600 / GRID_SIZE;
+    const GRID_ROWS = 700 / GRID_SIZE;
 
     const uniqueLines = Array.from(
       new Map(
@@ -310,8 +310,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setValidFlipPoints([]);
       setPendingPoint(null);
 
-      const gridWidth = Math.floor(800 / GRID_SIZE);
-      const gridHeight = Math.floor(600 / GRID_SIZE);
+      const gridWidth = Math.floor(1200 / GRID_SIZE);
+      const gridHeight = Math.floor(700 / GRID_SIZE);
       const newPointMap = new Map<string, Point>();
       const newLines: Segment[] = [];
 
@@ -440,7 +440,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         setPendingPoint(null);
 
         // Convert the saved state coordinates back to canvas coordinates
-        const GRID_ROWS = 600 / GRID_SIZE;
+        const GRID_ROWS = 700 / GRID_SIZE;
         const newPointMap = new Map<string, Point>(); // 🔹 Store actual `Point` objects
         const newLines: Segment[] = [];
 
@@ -642,7 +642,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    const GRID_ROWS = 600 / GRID_SIZE;
+    const GRID_ROWS = 700 / GRID_SIZE;
 
     const uniqueLines = Array.from(
       new Map(
