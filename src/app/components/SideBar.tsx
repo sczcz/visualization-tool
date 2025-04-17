@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ActionButton from "./ActionButton";
+import { exportMatchings, exportMatchingsAsNamedCSV, exportMatchingsAsReadableTXT, ExportFormat } from "../utils/Export"
 
 interface SidebarProps {
   className?: string;
@@ -29,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [numPoints, setNumPoints] = useState<number>(5);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
 
   useEffect(() => {
     if (savedStates.length > 0 && selectedIndex === null) {
@@ -58,7 +60,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     .filter(Boolean)
     .join(" ");
 
-  
+    const handleExport = () => {
+      if (exportFormat === "named_csv") {
+        exportMatchingsAsNamedCSV(savedStates);
+      } else if (exportFormat === "pretty_txt") {
+        exportMatchingsAsReadableTXT(savedStates);
+      } else {
+        exportMatchings(savedStates, exportFormat);
+      }      
+    };
 
   return (
     <div className={sidebarClasses}>
@@ -177,6 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </p>
           )}
         </div>
+
         <ActionButton
           variant="outline"
           size="sm"
@@ -190,6 +201,29 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           Clear History
         </ActionButton>
+
+        <div className="mt-6">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            className="border rounded px-2 py-1 text-sm w-full mb-2"
+          >
+            <option value="csv">Export as CSV</option>
+            <option value="json">Export as JSON</option>
+            <option value="txt">Export as TXT</option>
+            <option value="named_csv">Export as Named CSV</option>
+            <option value="pretty_txt">Export as Pretty TXT</option>
+          </select>
+
+          <ActionButton
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="w-full"
+          >
+            Export
+          </ActionButton>
+        </div>
       </div>
     </div>
   );
