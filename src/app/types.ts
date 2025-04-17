@@ -15,3 +15,11 @@ export interface Matching {
   segments: Segment[];
   freePoint: Point | null;
 }
+
+export interface FlipGraphNode {
+  id: number;
+  matching: Matching;
+  neighbors: number[];
+}
+
+export type FlipGraph = FlipGraphNode[];

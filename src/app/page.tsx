@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import Header from "./components/Header";
 import Sidebar from "./components/SideBar";
 import { KonvaCanvasRef } from "./KonvaCanvas"; // Import the ref type
+import { buildFlipGraph, saveFlipGraphToFile } from "./utils/GraphUtils";
 
 // Use dynamic import with ssr: false
 const KonvaCanvas = dynamic(() => import("./KonvaCanvas"), { ssr: false });
@@ -143,6 +144,10 @@ export default function Home() {
             avgDistance={avgDistance}
             freePointCoords={freePointCoords}
             savedStates={savedStates}
+            onBuildGraph={(matchings) => {
+              const graph = buildFlipGraph(matchings);
+              saveFlipGraphToFile(graph);
+            }}
           />
         </div>
       </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ActionButton from "./ActionButton";
+import { Matching } from "../types"
+import { convertSavedStatesToMatchings } from "../utils/GraphUtils";
 
 interface SidebarProps {
   className?: string;
@@ -12,12 +14,14 @@ interface SidebarProps {
   avgDistance: number;
   freePointCoords: { x: number; y: number } | null;
   savedStates: any[];
-  onClearHistory: () => void; // Add this prop
+  onClearHistory: () => void;
+  onBuildGraph: (matchings: Matching[]) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   className = "",
   mode,
+  onBuildGraph,
   onRandomGenerate,
   onHistorySelect,
   onClearHistory,
@@ -189,6 +193,19 @@ const Sidebar: React.FC<SidebarProps> = ({
           className="mt-2"
         >
           Clear History
+        </ActionButton>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const matchings = convertSavedStatesToMatchings(savedStates);
+            onBuildGraph(matchings);
+          }}
+          tooltip="Build the flip graph from saved matchings"
+          tooltipId="build-graph-tooltip"
+          className="mt-2"
+        >
+          Build FlipGraph
         </ActionButton>
       </div>
     </div>
