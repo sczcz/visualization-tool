@@ -6,24 +6,15 @@ interface HeaderProps {
   className?: string;
   activeMode: 'manual' | 'auto' | 'target';
   onModeChange: (mode: 'manual' | 'auto' | 'target') => void;
-  onClear: () => void;
-
   onSave: () => void;
-  onLoadCanonical: () => void;
-  onGenerateAllMatchings: () => void;
-  onEdit: () => void;
-
+  
 }
 
 const Header: React.FC<HeaderProps> = ({
   className = '',
   activeMode,
   onModeChange,
-  onClear,
   onSave,
-  onLoadCanonical,
-  onGenerateAllMatchings,
-  onEdit,
 
   
 }) => {
@@ -44,58 +35,7 @@ const Header: React.FC<HeaderProps> = ({
           >
             Save
           </ActionButton>
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onClear}
-            tooltip='Clear canvas'
-            tooltipId='clear-tooltip'
-          >
-            Clear
-          </ActionButton>
-          
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onLoadCanonical}
-            tooltip='Load canonical matching'
-            tooltipId='load-canonical-tooltip'
-          >
-            Canonical
-          </ActionButton>
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-                toast(
-                  "To ensure acceptable performance, the maximum number of matchings have been capped at 5000.",
-                  {
-                  duration: 5000,
-                  position: "top-center",
-                  style: {
-                    backgroundColor: "yellow",
-                  },
-                  }
-                );
-              
-
-              onGenerateAllMatchings();
-            }}
-            tooltip='Generate all matchings'
-            tooltipId='generate-all-matchings-tooltip'
-          >
-            Generate All Matchings
-          </ActionButton>
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onEdit}
-            tooltip='Edit the current matching'
-            tooltipId='edit-matching-tooltip'
-          >
-            Edit
-          </ActionButton>
-          
+      
         </div>
       </div>
       

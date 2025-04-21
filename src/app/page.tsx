@@ -71,18 +71,7 @@ export default function Home() {
     setMode(newMode);
   }, []);
   
-  const handleClear = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.clearCanvas();
-      updateStatistics();
-    }
-    
-    // Add current state to history
-    setHistory(prev => [...prev, {}]);
-    console.log("Clear canvas");
-    toast.success("Canvas cleared");
-  }, [updateStatistics]);
-  
+ 
   
   
   const handleSave = useCallback(() => {
@@ -90,13 +79,6 @@ export default function Home() {
     toast.success("Canvas saved");
   }, []);
   
-  const handleLoadCanonical = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.makeCanonical();
-      updateStatistics();
-    }
-    console.log("Load canonical");
-  }, [updateStatistics]);
   
   // Define handlers for the Sidebar component
   const handleRandomGenerate = useCallback((numPoints: number) => {
@@ -152,12 +134,7 @@ export default function Home() {
       <Header
         activeMode={mode}
         onModeChange={handleModeChange}
-        onClear={handleClear}
- 
         onSave={handleSave}
-        onLoadCanonical={handleLoadCanonical}
-        onGenerateAllMatchings={() => canvasRef.current?.generateAllMatchings()}
-        onEdit={handleEdit}
 
       />
       <div className="flex flex-1 overflow-hidden">
