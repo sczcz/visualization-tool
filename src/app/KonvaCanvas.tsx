@@ -922,24 +922,71 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   return (
     <div className="flex flex-col items-center mt-5">
-      <div className="mt-2 flex gap-2 mb-2">
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={handleUndo}
-        tooltip="Undo the last action (or use Ctrl+Z)"
-      >
-        Undo
-      </ActionButton>
+      <div className="flex gap-2 mb-2">
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handleUndo}
+          tooltip="Undo the last action (or use Ctrl+Z)"
+        >
+          Undo
+        </ActionButton>
 
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={handleRedo}
-        tooltip="Redo the last undone action (or use Ctrl+Shift+Z)"
-      >
-        Redo
-      </ActionButton>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={handleRedo}
+          tooltip="Redo the last undone action (or use Ctrl+Shift+Z)"
+        >
+          Redo
+        </ActionButton>
+
+        <div className="border-l border-gray-300 h-6 self-center"></div>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+        setScale((prev) => Math.max(prev / 1.2, 0.3));
+          }}
+          tooltip="Zoom out the canvas (or use mouse wheel down on canvas)"
+        >
+          Zoom Out
+        </ActionButton>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
+          }}
+          tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
+        >
+          Reset View
+        </ActionButton>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+        setScale((prev) => Math.min(prev * 1.2, 5));
+          }}
+          tooltip="Zoom in the canvas (or use mouse wheel up on canvas)"
+        >
+          Zoom In
+        </ActionButton>
+
+        <div className="border-l border-gray-300 h-6 self-center"></div>
+
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={saveState}
+          tooltip="Save the current matching state"
+        >
+          Add Matching
+        </ActionButton>
       </div>
       <div
       className={`inline-block border ${
@@ -1050,52 +1097,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       </Stage>
       </div>
       {/* Action buttons */}
-      <div className="mt-3 flex gap-2">
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={() => {
-        setScale((prev) => Math.max(prev / 1.2, 0.3));
-        }}
-        tooltip="Zoom out the canvas (or use mouse wheel down on canvas)"
-      >
-        Zoom Out
-      </ActionButton>
-
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={() => {
-        setScale(1);
-        setPosition({ x: 0, y: 0 });
-        }}
-        tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
-      >
-        Reset View
-      </ActionButton>
-
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={() => {
-        setScale((prev) => Math.min(prev * 1.2, 5));
-        }}
-        tooltip="Zoom in the canvas (or use mouse wheel up on canvas)"
-      >
-        Zoom In
-      </ActionButton>
-      </div>
-
-      <div className="mt-3">
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={saveState}
-        tooltip="Save the current matching state"
-      >
-        Add Matching
-      </ActionButton>
-      </div>
+      
     </div>
   );
 });

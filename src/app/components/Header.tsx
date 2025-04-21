@@ -7,12 +7,12 @@ interface HeaderProps {
   activeMode: 'manual' | 'auto' | 'target';
   onModeChange: (mode: 'manual' | 'auto' | 'target') => void;
   onClear: () => void;
-  onUndo: () => void;
+
   onSave: () => void;
   onLoadCanonical: () => void;
   onGenerateAllMatchings: () => void;
   onEdit: () => void;
-  canUndo: boolean;
+
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -20,12 +20,11 @@ const Header: React.FC<HeaderProps> = ({
   activeMode,
   onModeChange,
   onClear,
-  onUndo,
   onSave,
   onLoadCanonical,
   onGenerateAllMatchings,
   onEdit,
-  canUndo
+
   
 }) => {
   // Combine classes manually
@@ -54,17 +53,7 @@ const Header: React.FC<HeaderProps> = ({
           >
             Clear
           </ActionButton>
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className={!canUndo ? "opacity-50" : ""}
-            tooltip='Undo last action'
-            tooltipId='undo-tooltip'
-          >
-            Undo
-          </ActionButton>
+          
           <ActionButton 
             variant="outline" 
             size="sm"

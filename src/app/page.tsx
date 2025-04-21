@@ -83,13 +83,7 @@ export default function Home() {
     toast.success("Canvas cleared");
   }, [updateStatistics]);
   
-  const handleUndo = useCallback(() => {
-    if (history.length > 1) {
-      // Remove the last item from history
-      setHistory(prev => prev.slice(0, -1));
-      console.log("Undo last action");
-    }
-  }, [history]);
+  
   
   const handleSave = useCallback(() => {
     console.log("Save canvas");
@@ -159,12 +153,12 @@ export default function Home() {
         activeMode={mode}
         onModeChange={handleModeChange}
         onClear={handleClear}
-        onUndo={handleUndo}
+ 
         onSave={handleSave}
         onLoadCanonical={handleLoadCanonical}
         onGenerateAllMatchings={() => canvasRef.current?.generateAllMatchings()}
         onEdit={handleEdit}
-        canUndo={history.length > 1}
+
       />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1">
