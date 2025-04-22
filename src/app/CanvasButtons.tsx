@@ -1,5 +1,6 @@
 import React from "react";
 import ActionButton from "./components/ActionButton";
+import { toast } from "react-hot-toast";
 
 interface CanvasButtonsProps {
   handleUndo: () => void;
@@ -86,10 +87,28 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
       >
         Add Matching
       </ActionButton>
-
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          toast(
+            "To ensure acceptable performance, the maximum number of matchings have been capped at 5000.",
+            {
+              duration: 5000,
+              position: "top-center",
+              style: {
+                backgroundColor: "yellow",
+              },
+            }
+          );
+          onGenerateAllMatchings();
+        }}
+        tooltip="Generate all matchings"
+      >
+        Generate All Matchings
+      </ActionButton>
       <div className="border-l border-gray-300 h-6 self-center"></div>
 
-      {/* New Buttons */}
       <ActionButton
         variant="outline"
         size="sm"
@@ -113,14 +132,6 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
         tooltip="Load canonical matching"
       >
         Canonical
-      </ActionButton>
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={onGenerateAllMatchings}
-        tooltip="Generate all matchings"
-      >
-        Generate All Matchings
       </ActionButton>
     </div>
   );

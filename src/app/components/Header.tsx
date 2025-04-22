@@ -7,6 +7,7 @@ interface HeaderProps {
   activeMode: 'manual' | 'auto' | 'target';
   onModeChange: (mode: 'manual' | 'auto' | 'target') => void;
   onSave: () => void;
+  onImport: () => void;
   
 }
 
@@ -15,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({
   activeMode,
   onModeChange,
   onSave,
+  onImport,
 
   
 }) => {
@@ -34,6 +36,15 @@ const Header: React.FC<HeaderProps> = ({
             tooltipId='save-tooltip'
           >
             Save
+          </ActionButton>
+          <ActionButton 
+            variant="outline" 
+            size="sm"
+            onClick={onImport}
+            tooltip='Import matching from file'
+            tooltipId='import-tooltip'
+          >
+            Import
           </ActionButton>
       
         </div>
