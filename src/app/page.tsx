@@ -125,6 +125,7 @@ export default function Home() {
         activeMode={mode}
         onModeChange={handleModeChange}
         onSave={handleSave}
+        onImport={() => console.log("Import triggered")}
 
       />
       <div className="flex flex-1 overflow-hidden">
