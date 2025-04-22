@@ -1,55 +1,29 @@
-import React, { useCallback } from "react";
+import React from "react";
 import ActionButton from "./components/ActionButton";
-import toast from "react-hot-toast";
-import { KonvaCanvasRef } from "./KonvaCanvas";
 
 interface CanvasButtonsProps {
-  canvasRef: React.RefObject<KonvaCanvasRef>;
-  updateStatistics: () => void;
   handleUndo: () => void;
   handleRedo: () => void;
   setScale: (callback: (prevScale: number) => number) => void;
   setPosition: (position: { x: number; y: number }) => void;
   saveState: () => void;
+  onEdit: () => void;
+  onClear: () => void;
+  onLoadCanonical: () => void;
+  onGenerateAllMatchings: () => void;
 }
 
 const CanvasButtons: React.FC<CanvasButtonsProps> = ({
-  canvasRef,
-  updateStatistics,
   handleUndo,
   handleRedo,
   setScale,
   setPosition,
   saveState,
+  onEdit,
+  onClear,
+  onLoadCanonical,
+  onGenerateAllMatchings,
 }) => {
-  const handleClear = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.clearCanvas();
-      updateStatistics();
-    }
-    toast.success("Canvas cleared");
-  }, [canvasRef, updateStatistics]);
-
-  const handleLoadCanonical = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.makeCanonical();
-      updateStatistics();
-    }
-  }, [canvasRef, updateStatistics]);
-
-  const handleEdit = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.edit();
-      updateStatistics();
-    }
-  }, [canvasRef, updateStatistics]);
-
-  const handleGenerateAllMatchings = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.generateAllMatchings();
-    }
-  }, [canvasRef]);
-
   return (
     <div className="flex flex-wrap gap-2 mb-2">
       {/* Undo and Redo */}
@@ -85,7 +59,7 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
         variant="outline"
         size="sm"
         onClick={() => {
-            setScale(() => 1);
+          setScale(() => 1);
           setPosition({ x: 0, y: 0 });
         }}
         tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
@@ -115,11 +89,19 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
 
       <div className="border-l border-gray-300 h-6 self-center"></div>
 
-      {/* Existing Functionality */}
+      {/* New Buttons */}
       <ActionButton
         variant="outline"
         size="sm"
-        onClick={handleClear}
+        onClick={onEdit}
+        tooltip="Edit the current matching"
+      >
+        Edit
+      </ActionButton>
+      <ActionButton
+        variant="outline"
+        size="sm"
+        onClick={onClear}
         tooltip="Clear the canvas"
       >
         Clear
@@ -127,26 +109,18 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
       <ActionButton
         variant="outline"
         size="sm"
-        onClick={handleLoadCanonical}
-        tooltip="Load Canonical"
+        onClick={onLoadCanonical}
+        tooltip="Load canonical matching"
       >
-        Load Canonical
+        Canonical
       </ActionButton>
       <ActionButton
         variant="outline"
         size="sm"
-        onClick={handleEdit}
-        tooltip="Edit the canvas"
-      >
-        Edit
-      </ActionButton>
-      <ActionButton
-        variant="outline"
-        size="sm"
-        onClick={handleGenerateAllMatchings}
+        onClick={onGenerateAllMatchings}
         tooltip="Generate all matchings"
       >
-        Generate Matchings
+        Generate All Matchings
       </ActionButton>
     </div>
   );

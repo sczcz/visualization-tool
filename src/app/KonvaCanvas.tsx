@@ -5,7 +5,7 @@ import CanvasButtons from "./CanvasButtons";
 import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { toast } from "react-hot-toast";
-import { snapToGrid, doesIntersect, isOnGrid} from "./utils/MathUtils";
+import { snapToGrid, doesIntersect, isOnGrid } from "./utils/MathUtils";
 import {
   wouldCreateCollinearity,
   wouldCrossExistingSegments,
@@ -28,7 +28,6 @@ export interface KonvaCanvasRef {
   generateRandomPoints: (numPoints: number) => void;
   loadState: (stateIndex: number) => void;
   generateAllMatchings: () => void;
-  makeCanonical: () => void;
   edit: () => void;
 }
 
@@ -100,6 +99,74 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const next = history.current[historyStep.current];
     loadStateFromHistory(next);
   };
+
+  const handleEdit = () => {
+    setLocked(false);
+    if (freePoint) {
+      setPendingPoint(freePoint);
+    }
+    toast.success("Unlocked matching for editing!");
+  };
+  
+  const handleClear = () => {
+    setPointMap(new Map());
+    setLines([]);
+    setFreePoint(null);
+    setLocked(false);
+    setFreedPoints([]);
+    setFlashRed(false);
+    setValidFlipPoints([]);
+    setPendingPoint(null);
+    saveStateToHistory();
+    toast.success("Canvas cleared!");
+  };
+  
+  const makeCanonical = () => {
+    if (!locked || pointMap.size < 3) {
+      toast.error("Cannot make canonical! No locked matching available.");
+      return;
+    }
+  
+    // Get all points including the free point
+    const allPoints = Array.from(pointMap.values());
+  
+    // Sort points in canonical order (left to right)
+    const sortedPoints = [...allPoints].sort((a, b) => a.x - b.x);
+  
+    // Create new segments in canonical form
+    const newLines: Segment[] = [];
+    let newFreePoint: Point | null = null;
+  
+    // If odd number of points, the last one becomes the free point
+    if (sortedPoints.length % 2 === 1) {
+      newFreePoint = sortedPoints[sortedPoints.length - 1];
+  
+      // Create segments for pairs of points (0-1, 2-3, etc.)
+      for (let i = 0; i < sortedPoints.length - 1; i += 2) {
+        newLines.push({
+          start: sortedPoints[i],
+          end: sortedPoints[i + 1],
+        });
+      }
+    } else {
+      // Even number of points, create segments for all pairs
+      for (let i = 0; i < sortedPoints.length; i += 2) {
+        newLines.push({
+          start: sortedPoints[i],
+          end: sortedPoints[i + 1],
+        });
+      }
+    }
+  
+    // Update the canvas state
+    setLines(newLines);
+    setFreePoint(newFreePoint);
+  
+    console.log("Transformed to canonical matching");
+    toast.success("Successfully transformed to canonical matching!");
+    saveStateToHistory();
+  };
+
   const loadStateFromHistory = (state: any) => {
     setLines(state.lines);
     setPointMap(new Map(state.pointMap));
@@ -497,51 +564,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         console.log(`Loaded state ${stateIndex + 1}`);
       }
     },
-    makeCanonical: () => {
-      if (!locked || pointMap.size < 3) {
-        toast.error("Cannot make canonical! No locked matching available.");
-        return;
-      }
-
-      // Get all points including the free point
-      const allPoints = Array.from(pointMap.values());
-
-      // Sort points in canonical order (left to right)
-      const sortedPoints = [...allPoints].sort((a, b) => a.x - b.x);
-
-      // Create new segments in canonical form
-      const newLines: Segment[] = [];
-      let newFreePoint: Point | null = null;
-
-      // If odd number of points, the last one becomes the free point
-      if (sortedPoints.length % 2 === 1) {
-        newFreePoint = sortedPoints[sortedPoints.length - 1];
-
-        // Create segments for pairs of points (0-1, 2-3, etc.)
-        for (let i = 0; i < sortedPoints.length - 1; i += 2) {
-          newLines.push({
-            start: sortedPoints[i],
-            end: sortedPoints[i + 1],
-          });
-        }
-      } else {
-        // Even number of points, create segments for all pairs
-        for (let i = 0; i < sortedPoints.length; i += 2) {
-          newLines.push({
-            start: sortedPoints[i],
-            end: sortedPoints[i + 1],
-          });
-        }
-      }
-
-      // Update the canvas state
-      setLines(newLines);
-      setFreePoint(newFreePoint);
-
-      console.log("Transformed to canonical matching");
-      toast.success("Successfully transformed to canonical matching!");
-      saveStateToHistory();
-    },
+    
   }));
 
   const handleCanvasClickAction = (e: any) => {
@@ -922,126 +945,127 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
   return (
     <div className="flex flex-col items-center mt-5">
-        <CanvasButtons
+      
+      <CanvasButtons
         handleUndo={handleUndo}
         handleRedo={handleRedo}
         setScale={setScale}
         setPosition={setPosition}
         saveState={saveState}
+        onEdit={handleEdit}
+        onClear={handleClear}
+        onLoadCanonical={makeCanonical}
+        onGenerateAllMatchings={generateAllMatchings}
       />
-
-
-
       <div
-      className={`inline-block border ${
-        flashRed ? "border-4 border-red-500" : "border-2 border-black"
-      } transition-all duration-300`}
+        className={`inline-block border ${
+          flashRed ? "border-4 border-red-500" : "border-2 border-black"
+        } transition-all duration-300`}
       >
-      <Stage
-        width={1200}
-        height={700}
-        onWheel={handleWheel}
-        scaleX={scale}
-        scaleY={scale}
-        x={position.x}
-        y={position.y}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseOut}
-        className={`bg-gray-100 ${
-        isDragging ? "cursor-grabbing" : "cursor-default"
-        }`}
-      >
-        <Layer>
-        {/* Grid lines */}
-        {[...Array(1200 / GRID_SIZE)].map((_, i) => (
-          <Line
-          key={`grid-v-${i}`}
-          points={[i * GRID_SIZE, 0, i * GRID_SIZE, 700]}
-          stroke="#ddd"
-          />
-        ))}
-        {[...Array(700 / GRID_SIZE)].map((_, i) => (
-          <Line
-          key={`grid-h-${i}`}
-          points={[0, i * GRID_SIZE, 1200, i * GRID_SIZE]}
-          stroke="#ddd"
-          />
-        ))}
+        <Stage
+          width={1200}
+          height={700}
+          onWheel={handleWheel}
+          scaleX={scale}
+          scaleY={scale}
+          x={position.x}
+          y={position.y}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseOut}
+          className={`bg-gray-100 ${
+            isDragging ? "cursor-grabbing" : "cursor-default"
+          }`}
+        >
+          <Layer>
+            {/* Grid lines */}
+            {[...Array(1200 / GRID_SIZE)].map((_, i) => (
+              <Line
+                key={`grid-v-${i}`}
+                points={[i * GRID_SIZE, 0, i * GRID_SIZE, 700]}
+                stroke="#ddd"
+              />
+            ))}
+            {[...Array(700 / GRID_SIZE)].map((_, i) => (
+              <Line
+                key={`grid-h-${i}`}
+                points={[0, i * GRID_SIZE, 1200, i * GRID_SIZE]}
+                stroke="#ddd"
+              />
+            ))}
 
-        {/* Matching lines */}
-        {lines.map((line, i) => (
-          <React.Fragment key={`line-${i}`}>
-          <Line
-            points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-            stroke="rgba(0,0,0,0)"
-            strokeWidth={30}
-            onClick={() => handleLineClick(i)}
-            onMouseEnter={() => handleLineHover(i)}
-            onMouseLeave={handleLineLeave}
-          />
-          <Line
-            points={[line.start.x, line.start.y, line.end.x, line.end.y]}
-            stroke={
-            hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
-            }
-            strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
-            listening={false}
-          />
-          </React.Fragment>
-        ))}
+            {/* Matching lines */}
+            {lines.map((line, i) => (
+              <React.Fragment key={`line-${i}`}>
+                <Line
+                  points={[line.start.x, line.start.y, line.end.x, line.end.y]}
+                  stroke="rgba(0,0,0,0)"
+                  strokeWidth={30}
+                  onClick={() => handleLineClick(i)}
+                  onMouseEnter={() => handleLineHover(i)}
+                  onMouseLeave={handleLineLeave}
+                />
+                <Line
+                  points={[line.start.x, line.start.y, line.end.x, line.end.y]}
+                  stroke={
+                    hoveredLineIndex === i && locked ? "#ff6b6b" : "black"
+                  }
+                  strokeWidth={hoveredLineIndex === i && locked ? 3 : 2}
+                  listening={false}
+                />
+              </React.Fragment>
+            ))}
 
-        {/* Points */}
-        {Array.from(pointMap.values()).map((point, i) => (
-          <Circle
-          key={`point-${i}`}
-          x={point.x}
-          y={point.y}
-          radius={5}
-          fill="blue"
-          />
-        ))}
+            {/* Points */}
+            {Array.from(pointMap.values()).map((point, i) => (
+              <Circle
+                key={`point-${i}`}
+                x={point.x}
+                y={point.y}
+                radius={5}
+                fill="blue"
+              />
+            ))}
 
-        {/* Free point */}
-        {freePoint && (
-          <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
-        )}
+            {/* Free point */}
+            {freePoint && (
+              <Circle x={freePoint.x} y={freePoint.y} radius={7} fill="red" />
+            )}
 
-        {/* Pending point */}
-        {pendingPoint && (
-          <Circle
-          x={pendingPoint.x}
-          y={pendingPoint.y}
-          radius={6}
-          fill="purple"
-          stroke="black"
-          strokeWidth={1}
-          />
-        )}
+            {/* Pending point */}
+            {pendingPoint && (
+              <Circle
+                x={pendingPoint.x}
+                y={pendingPoint.y}
+                radius={6}
+                fill="purple"
+                stroke="black"
+                strokeWidth={1}
+              />
+            )}
 
-        {/* Freed points */}
-        {freedPoints.map((p, i) => {
-          const isValidFlip = validFlipPoints.some(
-          (vp) => vp.x === p.x && vp.y === p.y
-          );
-          return (
-          <Circle
-            key={`freed-${i}`}
-            x={p.x}
-            y={p.y}
-            radius={7}
-            fill={isValidFlip ? "green" : "orange"}
-            stroke="black"
-            strokeWidth={1}
-          />
-          );
-        })}
-        </Layer>
-      </Stage>
+            {/* Freed points */}
+            {freedPoints.map((p, i) => {
+              const isValidFlip = validFlipPoints.some(
+                (vp) => vp.x === p.x && vp.y === p.y
+              );
+              return (
+                <Circle
+                  key={`freed-${i}`}
+                  x={p.x}
+                  y={p.y}
+                  radius={7}
+                  fill={isValidFlip ? "green" : "orange"}
+                  stroke="black"
+                  strokeWidth={1}
+                />
+              );
+            })}
+          </Layer>
+        </Stage>
       </div>
       {/* Action buttons */}
-      
     </div>
   );
 });
@@ -1049,3 +1073,4 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 KonvaCanvas.displayName = "KonvaCanvas";
 
 export default KonvaCanvas;
+

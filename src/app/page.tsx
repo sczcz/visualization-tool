@@ -72,8 +72,6 @@ export default function Home() {
   }, []);
   
  
-  
-  
   const handleSave = useCallback(() => {
     console.log("Save canvas");
     toast.success("Canvas saved");
@@ -119,14 +117,6 @@ export default function Home() {
     console.log(`Loaded history at index ${historyIndex}`);
     toast.success(`Loaded history at index ${historyIndex}`);
   }, [updateStatistics]);
-
-  const handleEdit = useCallback(() => {
-    if (canvasRef.current) {
-      canvasRef.current.edit();
-      updateStatistics();
-    }
-
-  }, []);
 
   return (
     <div className="bg-white text-black p-4 w-full flex flex-col h-screen">
