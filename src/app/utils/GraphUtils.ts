@@ -55,19 +55,21 @@ const isOneFlipAway = (a: Matching, b: Matching): boolean => {
 const normalizeSegment = (s: Segment): Segment => {
     const a = s.start, b = s.end;
     return (a.x < b.x || (a.x === b.x && a.y < b.y)) ? s : { start: b, end: a };
-  };
-  
-  const segmentsEqual = (a: Segment, b: Segment): boolean => {
-    return (
-      (a.start.x === b.start.x && a.start.y === b.start.y &&
-       a.end.x === b.end.x && a.end.y === b.end.y) ||
-      (a.start.x === b.end.x && a.start.y === b.end.y &&
-       a.end.x === b.start.x && a.end.y === b.start.y)
-    );
-  };
-  
-  const includesSegment = (list: Segment[], seg: Segment): boolean => {
-    return list.some(s => segmentsEqual(s, seg));
+};
+
+
+const segmentsEqual = (a: Segment, b: Segment): boolean => {
+  return (
+    (a.start.x === b.start.x && a.start.y === b.start.y &&
+      a.end.x === b.end.x && a.end.y === b.end.y) ||
+    (a.start.x === b.end.x && a.start.y === b.end.y &&
+      a.end.x === b.start.x && a.end.y === b.start.y)
+  );
+};
+
+
+const includesSegment = (list: Segment[], seg: Segment): boolean => {
+  return list.some(s => segmentsEqual(s, seg));
 };
 
 
