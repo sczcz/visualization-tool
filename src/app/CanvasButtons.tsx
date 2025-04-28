@@ -63,7 +63,7 @@ const CanvasButtons: React.FC<CanvasButtonsProps> = ({
           setScale(() => 1);
           setPosition({ x: 0, y: 0 });
         }}
-        tooltip="Reset canvas to default position and zoom level (Pro tip: Pan by holding middle mouse button)"
+        tooltip="Reset canvas to default position - Pro tip: Pan by holding middle mouse button)"
       >
         Reset View
       </ActionButton>
