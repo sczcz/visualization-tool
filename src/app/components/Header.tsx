@@ -15,8 +15,6 @@ const Header: React.FC<HeaderProps> = ({
   className = '',
   activeMode,
   onModeChange,
-  onSave,
-  onImport,
 
   
 }) => {
@@ -28,25 +26,6 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-semibold">Matching Magic</h1>
         <div className="flex gap-2">
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onSave}
-            tooltip='Save current matching to file'
-            tooltipId='save-tooltip'
-          >
-            Save
-          </ActionButton>
-          <ActionButton 
-            variant="outline" 
-            size="sm"
-            onClick={onImport}
-            tooltip='Import matching from file'
-            tooltipId='import-tooltip'
-          >
-            Import
-          </ActionButton>
-      
         </div>
       </div>
       
