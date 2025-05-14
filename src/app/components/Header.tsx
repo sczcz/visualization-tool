@@ -20,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({
 
   
 }) => {
-  // Combine classes manually
+  // Combine classes 
   const headerClasses = [" p-4 w-full", className].filter(Boolean).join(' ');
 
   return (
