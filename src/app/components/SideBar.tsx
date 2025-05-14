@@ -191,6 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
+
         <ActionButton
           variant="outline"
           size="sm"
@@ -217,6 +218,29 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           Build FlipGraph
         </ActionButton>
+
+        <div className="mt-6">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            className="border rounded px-2 py-1 text-sm w-full mb-2"
+          >
+            <option value="csv">Export as CSV</option>
+            <option value="json">Export as JSON</option>
+            <option value="txt">Export as TXT</option>
+            <option value="named_csv">Export as Named CSV</option>
+            <option value="pretty_txt">Export as Pretty TXT</option>
+          </select>
+
+          <ActionButton
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="w-full"
+          >
+            Export
+          </ActionButton>
+        </div>
 
         <div className="mt-6">
           <select
