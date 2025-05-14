@@ -14,7 +14,6 @@ import { Point, Segment, Matching } from "./types";
 
 const GRID_SIZE = 20;
 
-// Define the ref interface
 export interface KonvaCanvasRef {
   getPoints: () => { x: number; y: number }[];
   getLines: () => {
@@ -61,16 +60,13 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     y: number;
   } | null>(null);
 
-  // New states and refs for undo/redo functionality
   const history = React.useRef<any[]>([]);
   const historyStep = React.useRef(0);
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
-      // Ctrl+Z for undo
       handleUndo();
     } else if (e.ctrlKey && e.key === "Z" && e.shiftKey) {
-      // Ctrl+Shift+Z for redo
       handleRedo();
     }
   };
@@ -127,21 +123,15 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
   
-    // Get all points including the free point
     const allPoints = Array.from(pointMap.values());
-  
-    // Sort points in canonical order (left to right)
     const sortedPoints = [...allPoints].sort((a, b) => a.x - b.x);
   
-    // Create new segments in canonical form
     const newLines: Segment[] = [];
     let newFreePoint: Point | null = null;
   
-    // If odd number of points, the last one becomes the free point
     if (sortedPoints.length % 2 === 1) {
       newFreePoint = sortedPoints[sortedPoints.length - 1];
   
-      // Create segments for pairs of points (0-1, 2-3, etc.)
       for (let i = 0; i < sortedPoints.length - 1; i += 2) {
         newLines.push({
           start: sortedPoints[i],
@@ -149,7 +139,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         });
       }
     } else {
-      // Even number of points, create segments for all pairs
       for (let i = 0; i < sortedPoints.length; i += 2) {
         newLines.push({
           start: sortedPoints[i],
@@ -158,7 +147,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       }
     }
   
-    // Update the canvas state
     setLines(newLines);
     setFreePoint(newFreePoint);
   
@@ -338,7 +326,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
   };
 
-  // Expose methods and data to parent component via ref
   useImperativeHandle(ref, () => ({
     getPoints: () => Array.from(pointMap.values()),
     getLines: () => lines,
@@ -368,7 +355,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       saveStateToHistory();
     },
     generateRandomPoints: (numPoints: number) => {
-      // Clear everything before generating
       setPointMap(new Map());
       setLines([]);
       setFreePoint(null);
@@ -386,7 +372,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       let totalAttempts = 0;
       let backtrackStack: string[] = [];
 
-      // Create shuffled grid positions
       const shuffledGrid: { x: number; y: number }[] = [];
       for (let i = 1; i < gridWidth - 1; i++) {
         for (let j = 1; j < gridHeight - 1; j++) {
@@ -402,13 +387,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         return;
       }
 
-      // Helper function to check if a new point is valid
       const isValidPoint = (
         point: Point,
         pointMap: Map<string, Point>,
         lines: Segment[]
       ) => {
-        if (pointMap.has(point.key)) return false; // Avoid duplicates
+        if (pointMap.has(point.key)) return false;
 
         if (pointMap.size >= 2 && wouldCreateCollinearity(point, pointMap)) {
           return false;
@@ -420,7 +404,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
           const newSegment: Segment = { start: previousPoint, end: point };
 
-          // Check if the new segment crosses existing ones
           if (
             wouldCrossExistingSegments(newSegment.start, newSegment.end, lines)
           ) {
@@ -431,7 +414,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         return true;
       };
 
-      // Generate points and pairs
       while (newPointMap.size < numPoints && totalAttempts < maxAttempts) {
         totalAttempts++;
 
@@ -451,14 +433,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
         if (!isValidPoint(newPoint, newPointMap, newLines)) continue;
 
-        // Handle segment pairing
         if (newPointMap.size % 2 === 1) {
           const previousPoint = [...newPointMap.values()].pop();
           if (!previousPoint) continue;
 
           const newSegment: Segment = { start: previousPoint, end: newPoint };
 
-          // Final intersection check
           if (
             wouldCrossExistingSegments(
               newSegment.start,
@@ -466,7 +446,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
               newLines
             )
           ) {
-            continue; // Skip if it causes an intersection
+            continue;
           }
 
           newLines.push(newSegment);
@@ -497,7 +477,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       if (stateIndex >= 0 && stateIndex < savedStates.length) {
         const state = savedStates[stateIndex];
 
-        // Clear the current canvas state
         setPointMap(new Map());
         setLines([]);
         setFreePoint(null);
@@ -506,13 +485,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
         setValidFlipPoints([]);
         setPendingPoint(null);
 
-        // Convert the saved state coordinates back to canvas coordinates
         const GRID_ROWS = 700 / GRID_SIZE;
-        const newPointMap = new Map<string, Point>(); // 🔹 Store actual `Point` objects
+        const newPointMap = new Map<string, Point>();
         const newLines: Segment[] = [];
 
         state.lines.forEach((line: any) => {
-          // Convert grid coordinates back to canvas coordinates
           const startKey = `${line.start.x * GRID_SIZE},${
             (GRID_ROWS - line.start.y) * GRID_SIZE
           }`;
@@ -520,7 +497,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
             (GRID_ROWS - line.end.y) * GRID_SIZE
           }`;
 
-          // Ensure each point exists in `newPointMap`
           if (!newPointMap.has(startKey)) {
             newPointMap.set(startKey, {
               x: line.start.x * GRID_SIZE,
@@ -536,14 +512,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
             });
           }
 
-          // Add the segment using the stored points
           newLines.push({
             start: newPointMap.get(startKey)!,
             end: newPointMap.get(endKey)!,
           });
         });
 
-        // Add the free point if it exists
         if (state.freePoint) {
           const freePoint: Point = {
             x: state.freePoint.x * GRID_SIZE,
@@ -579,11 +553,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
     const pointKey = `${snappedPos.x},${snappedPos.y}`;
 
-    // Get the canvas dimensions
     const canvasWidth = stage.width();
     const canvasHeight = stage.height();
 
-    // Check if the snapped position is on the visible grid
     if (!isOnGrid(snappedPos, GRID_SIZE, canvasWidth, canvasHeight)) {
       toast.error("Points can only be placed on visible grid lines.");
       return;
@@ -605,28 +577,24 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
 
     if (pendingPoint) {
-      // Create proper Point objects
       const startPoint = {
         ...pendingPoint,
         key: `${pendingPoint.x},${pendingPoint.y}`,
       };
       const endPoint = { ...snappedPos, key: pointKey };
 
-      // First check if the segment would cross existing lines
       if (wouldCrossExistingSegments(startPoint, endPoint, lines)) {
         toast.error("Cannot create segment that crosses other lines!");
         return;
       }
 
-      // Update the point map first
       const newMap = new Map(pointMap);
-      // Make sure both points are in the map
       if (!newMap.has(startPoint.key)) {
         newMap.set(startPoint.key, startPoint);
       }
       newMap.set(pointKey, endPoint);
 
-      // Create segment using the actual points from the map
+
       const newSegment: Segment = {
         start: newMap.get(startPoint.key)!,
         end: newMap.get(pointKey)!,
@@ -636,10 +604,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       setLines((prevLines) => [...prevLines, newSegment]);
       setPendingPoint(null);
 
-      // Set free point based on odd/even count
       setFreePoint(newMap.size % 2 === 1 ? newMap.get(pointKey) ?? null : null);
     } else {
-      // Add the first point
       const newPoint = { ...snappedPos, key: pointKey };
       setPointMap((prevMap) => {
         const newMap = new Map(prevMap);
@@ -649,9 +615,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 
       setPendingPoint(snappedPos);
 
-      // Update free point if needed
       if (pointMap.size % 2 === 0) {
-        // Will be odd after adding this point
         setFreePoint(newPoint);
       } else {
         setFreePoint(null);
@@ -712,7 +676,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     toast.success("Successfully saved matching!");
   };
 
-  // Handle mouse wheel event for zooming
   const handleWheel = (e: any) => {
     e.evt.preventDefault();
 
@@ -725,13 +688,9 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       y: (pointer.y - position.y) / oldScale,
     };
 
-    // Calculate new scale: zoom in when scrolling up, zoom out when scrolling down
     const newScale = e.evt.deltaY < 0 ? oldScale * 1.1 : oldScale / 1.1;
-
-    // Limit zoom levels (optional)
     const limitedScale = Math.min(Math.max(newScale, 0.3), 5);
 
-    // Calculate new position so we zoom to where the mouse is
     const newPos = {
       x: pointer.x - mousePointTo.x * limitedScale,
       y: pointer.y - mousePointTo.y * limitedScale,
@@ -744,7 +703,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   const handleMouseDown = (e: any) => {
     const buttonCode = e.evt.button;
 
-    // Middle button for panning (button code 1)
     if (buttonCode === 1) {
       e.evt.preventDefault();
       setIsDragging(true);
@@ -755,13 +713,10 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    // Left button for interactions (button code 0)
     if (buttonCode === 0) {
       if (locked) {
-        // Call your flip handler
         handleFlipAction(e);
       } else {
-        // Call your canvas click handler
         handleCanvasClickAction(e);
       }
     }
@@ -774,17 +729,13 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const stage = e.target.getStage();
     const pointerPos = stage.getPointerPosition();
 
-    // Calculate how far the mouse has moved
     const dx = pointerPos.x - lastPointerPosition.x;
     const dy = pointerPos.y - lastPointerPosition.y;
 
-    // Update position
     setPosition((prev) => ({
       x: prev.x + dx,
       y: prev.y + dy,
     }));
-
-    // Update last position
     setLastPointerPosition(pointerPos);
   };
 
@@ -795,20 +746,17 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     }
   };
 
-  // Add mouseout handler to stop dragging if mouse leaves the canvas
   const handleMouseOut = () => {
     setIsDragging(false);
     setLastPointerPosition(null);
   };
 
-  // Check if a potential flip would be valid
   const isValidFlip = (
     freedPoint: { x: number; y: number },
     currentFreePoint: { x: number; y: number } | null
   ) => {
     if (!currentFreePoint) return false;
 
-    // Create the potential new segment
     const newSegment: Segment = {
       start: { ...freedPoint, key: `${freedPoint.x},${freedPoint.y}` },
       end: {
@@ -817,7 +765,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       },
     };
 
-    // Filter out any lines that contain the freed points (since they'll be removed)
     const otherLines: Segment[] = lines
       .filter(
         (line) =>
