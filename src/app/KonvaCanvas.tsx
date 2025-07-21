@@ -6,20 +6,12 @@ import { Stage, Layer, Line, Circle, Text } from "react-konva";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { toast } from "react-hot-toast";
 import { snapToGrid, doesIntersect, isOnGrid } from "./utils/MathUtils";
-import {
-  wouldCreateCollinearity,
-  wouldCrossExistingSegments,
-} from "./utils/CanvasUtils";
+import { wouldCreateCollinearity, wouldCrossExistingSegments } from "./utils/CanvasUtils";
 import { Point, Segment, Matching } from "./types";
-
-const GRID_SIZE = 20;
 
 export interface KonvaCanvasRef {
   getPoints: () => { x: number; y: number }[];
-  getLines: () => {
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  }[];
+  getLines: () => { start: { x: number; y: number }; end: { x: number; y: number }; }[];
   getFreePoint: () => { x: number; y: number } | null;
   getSavedStates: () => any[];
   clearSavedStates: () => void;
@@ -30,38 +22,41 @@ export interface KonvaCanvasRef {
   edit: () => void;
 }
 
+// ===== Canvas grid configuration =====
+const GRID_SIZE = 20;
+
+// ===== KonvaCanvas.tsx structure =====
+// 1. React state & refs
+// 2. Keyboard shortcut handlers
+// 3. Undo/Redo & Canvas history
+// 4. Canvas interactions (click, drag, zoom)
+// 5. Matching interaction
+// 6. Matching logic
+// 7. Canvas actions
+// 8. Canvas public API
+// 9. JSX Rendering
+
 const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
+  // ===== 1. React state & refs =====
+
   const [lines, setLines] = useState<Segment[]>([]);
-  const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(
-    null
-  );
+  const [freePoint, setFreePoint] = useState<{ x: number; y: number } | null>(null);
   const [savedStates, setSavedStates] = useState<any[]>([]);
   const [locked, setLocked] = useState(false);
   const [pointMap, setPointMap] = useState(new Map<string, Point>());
-  const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>(
-    []
-  );
+  const [freedPoints, setFreedPoints] = useState<{ x: number; y: number }[]>([]);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-
   const [flashRed, setFlashRed] = useState(false);
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
-  const [validFlipPoints, setValidFlipPoints] = useState<
-    { x: number; y: number }[]
-  >([]);
-  const [pendingPoint, setPendingPoint] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
+  const [validFlipPoints, setValidFlipPoints] = useState<{ x: number; y: number }[]>([]);
+  const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number; } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [lastPointerPosition, setLastPointerPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
+  const [lastPointerPosition, setLastPointerPosition] = useState<{ x: number; y: number; } | null>(null);
   const history = React.useRef<any[]>([]);
   const historyStep = React.useRef(0);
+
+  // ===== 2. Keyboard shortcut handlers =====
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
@@ -77,6 +72,8 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  // ===== 3. Undo/Redo & Canvas history =====
 
   const handleUndo = () => {
     if (historyStep.current === 0) {
@@ -96,27 +93,342 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     loadStateFromHistory(next);
   };
 
-  const handleEdit = () => {
-    setLocked(false);
-    if (freePoint) {
-      setPendingPoint(freePoint);
+  const saveStateToHistory = () => {
+    const newState = {
+      lines,
+      pointMap: Array.from(pointMap.entries()),
+      freePoint,
+      savedStates,
+      locked,
+      freedPoints,
+      scale,
+      position,
+      flashRed,
+      hoveredLineIndex,
+      validFlipPoints,
+      pendingPoint,
+      isDragging,
+      lastPointerPosition,
+    };
+
+    history.current = history.current.slice(0, historyStep.current + 1);
+    history.current = history.current.concat([newState]);
+    historyStep.current += 1;
+
+    if (history.current.length > 20) {
+      history.current.shift();
+      historyStep.current -= 1;
     }
-    toast.success("Unlocked matching for editing!");
   };
-  
-  const handleClear = () => {
-    setPointMap(new Map());
-    setLines([]);
-    setFreePoint(null);
-    setLocked(false);
-    setFreedPoints([]);
-    setFlashRed(false);
-    setValidFlipPoints([]);
-    setPendingPoint(null);
+
+  const loadStateFromHistory = (state: any) => {
+    setLines(state.lines);
+    setPointMap(new Map(state.pointMap));
+    setFreePoint(state.freePoint);
+    setSavedStates(state.savedStates);
+    setLocked(state.locked);
+    setFreedPoints(state.freedPoints);
+    setScale(state.scale);
+    setPosition(state.position);
+    setFlashRed(state.flashRed);
+    setHoveredLineIndex(state.hoveredLineIndex);
+    setValidFlipPoints(state.validFlipPoints);
+    setPendingPoint(state.pendingPoint);
+    setIsDragging(state.isDragging);
+    setLastPointerPosition(state.lastPointerPosition);
+  };
+
+  // ===== 4. Canvas interactions (click, drag, zoom) =====
+
+  const handleMouseDown = (e: any) => {
+    const buttonCode = e.evt.button;
+
+    if (buttonCode === 1) {
+      e.evt.preventDefault();
+      setIsDragging(true);
+
+      const stage = e.target.getStage();
+      const pointerPos = stage.getPointerPosition();
+      setLastPointerPosition(pointerPos);
+      return;
+    }
+
+    if (buttonCode === 0) {
+      if (locked) {
+        handleFlipAction(e);
+      } else {
+        handleCanvasClickAction(e);
+      }
+    }
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isDragging || !lastPointerPosition) return;
+
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+
+    const dx = pointerPos.x - lastPointerPosition.x;
+    const dy = pointerPos.y - lastPointerPosition.y;
+
+    setPosition((prev) => ({
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
+    setLastPointerPosition(pointerPos);
+  };
+
+  const handleMouseUp = (e: any) => {
+    if (e.evt.button === 1) {
+      setIsDragging(false);
+      setLastPointerPosition(null);
+    }
+  };
+
+  const handleMouseOut = () => {
+    setIsDragging(false);
+    setLastPointerPosition(null);
+  };
+
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault();
+
+    const stage = e.target.getStage();
+    const oldScale = scale;
+    const pointer = stage.getPointerPosition();
+
+    const mousePointTo = {
+      x: (pointer.x - position.x) / oldScale,
+      y: (pointer.y - position.y) / oldScale,
+    };
+
+    const newScale = e.evt.deltaY < 0 ? oldScale * 1.1 : oldScale / 1.1;
+    const limitedScale = Math.min(Math.max(newScale, 0.3), 5);
+
+    const newPos = {
+      x: pointer.x - mousePointTo.x * limitedScale,
+      y: pointer.y - mousePointTo.y * limitedScale,
+    };
+
+    setScale(limitedScale);
+    setPosition(newPos);
+  };
+
+  // ===== 5. Matching interaction =====
+
+  const handleCanvasClickAction = (e: any) => {
     saveStateToHistory();
-    toast.success("Canvas cleared!");
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+    if (!pointerPos) return;
+
+    const adjustedX = (pointerPos.x - position.x) / scale;
+    const adjustedY = (pointerPos.y - position.y) / scale;
+
+    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
+    const pointKey = `${snappedPos.x},${snappedPos.y}`;
+
+    const canvasWidth = stage.width();
+    const canvasHeight = stage.height();
+
+    if (!isOnGrid(snappedPos, GRID_SIZE, canvasWidth, canvasHeight)) {
+      toast.error("Points can only be placed on visible grid lines.");
+      return;
+    }
+
+    if (pointMap.has(pointKey)) {
+      toast.error("Cannot place points on top of each other!");
+      return;
+    }
+
+    if (
+      wouldCreateCollinearity(
+        { ...snappedPos, key: `${snappedPos.x},${snappedPos.y}` },
+        pointMap
+      )
+    ) {
+      toast.error("Cannot create collinear points!");
+      return;
+    }
+
+    if (pendingPoint) {
+      const startPoint = {
+        ...pendingPoint,
+        key: `${pendingPoint.x},${pendingPoint.y}`,
+      };
+      const endPoint = { ...snappedPos, key: pointKey };
+
+      if (wouldCrossExistingSegments(startPoint, endPoint, lines)) {
+        toast.error("Cannot create segment that crosses other lines!");
+        return;
+      }
+
+      const newMap = new Map(pointMap);
+      if (!newMap.has(startPoint.key)) {
+        newMap.set(startPoint.key, startPoint);
+      }
+      newMap.set(pointKey, endPoint);
+
+
+      const newSegment: Segment = {
+        start: newMap.get(startPoint.key)!,
+        end: newMap.get(pointKey)!,
+      };
+
+      setPointMap(newMap);
+      setLines((prevLines) => [...prevLines, newSegment]);
+      setPendingPoint(null);
+
+      setFreePoint(newMap.size % 2 === 1 ? newMap.get(pointKey) ?? null : null);
+    } else {
+      const newPoint = { ...snappedPos, key: pointKey };
+      setPointMap((prevMap) => {
+        const newMap = new Map(prevMap);
+        newMap.set(pointKey, newPoint);
+        return newMap;
+      });
+
+      setPendingPoint(snappedPos);
+
+      if (pointMap.size % 2 === 0) {
+        setFreePoint(newPoint);
+      } else {
+        setFreePoint(null);
+      }
+    }
   };
-  
+
+  const handleLineClick = (index: number) => {
+    if (!locked || freedPoints.length > 0) return;
+
+    const removedLine = lines[index];
+    const validPoints: { x: number; y: number }[] = [];
+
+    if (freePoint && isValidFlip(removedLine.start, freePoint)) {
+      validPoints.push(removedLine.start);
+    }
+
+    if (freePoint && isValidFlip(removedLine.end, freePoint)) {
+      validPoints.push(removedLine.end);
+    }
+
+    if (validPoints.length === 0) {
+      toast.error("No valid flips possible for this line!");
+      return;
+    }
+
+    const newLines = lines.filter((_, i) => i !== index);
+    setLines(newLines);
+    setFreedPoints([removedLine.start, removedLine.end]);
+    setValidFlipPoints(validPoints);
+
+    console.log(
+      `Removed line at index ${index}, freed points:`,
+      removedLine.start,
+      removedLine.end
+    );
+    console.log(`Valid flip points:`, validPoints);
+  };
+
+  const handleLineHover = (index: number) => {
+    if (locked) {
+      setHoveredLineIndex(index);
+    }
+  };
+
+  const handleLineLeave = () => {
+    setHoveredLineIndex(null);
+  };
+
+  const handleFlipAction = (e: any) => {
+    if (!locked || freedPoints.length !== 2 || !freePoint) return;
+
+    const stage = e.target.getStage();
+    const pointerPos = stage.getPointerPosition();
+    if (!pointerPos) return;
+
+    const adjustedX = (pointerPos.x - position.x) / scale;
+    const adjustedY = (pointerPos.y - position.y) / scale;
+
+    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
+
+    const isFreedPoint = freedPoints.some(
+      (p) => p.x === snappedPos.x && p.y === snappedPos.y
+    );
+
+    if (!isFreedPoint) {
+      toast.error("Click on one of the freed points to connect!");
+      return;
+    }
+
+    const isValidFlipPoint = validFlipPoints.some(
+      (p) => p.x === snappedPos.x && p.y === snappedPos.y
+    );
+
+    if (!isValidFlipPoint) {
+      toast.error("This is not a valid flip point!");
+      return;
+    }
+
+    const newSegment: Segment = {
+      start: { ...snappedPos, key: `${snappedPos.x},${snappedPos.y}` },
+      end: { ...freePoint, key: `${freePoint.x},${freePoint.y}` },
+    };
+
+    const newFreePoint = freedPoints.find(
+      (p) => p.x !== snappedPos.x || p.y !== snappedPos.y
+    );
+
+    if (!newFreePoint) {
+      console.error("Could not find the other freed point");
+      return;
+    }
+
+    setLines((prevLines) => [...prevLines, newSegment]);
+    setFreedPoints([]);
+    setFreePoint(newFreePoint);
+    setValidFlipPoints([]);
+
+    console.log(
+      `Added new line from (${snappedPos.x}, ${snappedPos.y}) to (${freePoint.x}, ${freePoint.y})`
+    );
+    console.log(`New free point: (${newFreePoint.x}, ${newFreePoint.y})`);
+  };
+
+  const isValidFlip = (
+    freedPoint: { x: number; y: number },
+    currentFreePoint: { x: number; y: number } | null
+  ) => {
+    if (!currentFreePoint) return false;
+
+    const newSegment: Segment = {
+      start: { ...freedPoint, key: `${freedPoint.x},${freedPoint.y}` },
+      end: {
+        ...currentFreePoint,
+        key: `${currentFreePoint.x},${currentFreePoint.y}`,
+      },
+    };
+
+    const otherLines: Segment[] = lines
+      .filter(
+        (line) =>
+          !freedPoints.some(
+            (fp) =>
+              (line.start.x === fp.x && line.start.y === fp.y) ||
+              (line.end.x === fp.x && line.end.y === fp.y)
+          )
+      )
+      .map((line) => ({
+        start: { ...line.start, key: `${line.start.x},${line.start.y}` },
+        end: { ...line.end, key: `${line.end.x},${line.end.y}` },
+      }));
+
+    return !otherLines.some((line) => doesIntersect(line, newSegment));
+  };
+
+  // ===== 6. Matching logic =====
+
   const makeCanonical = () => {
     if (!locked || pointMap.size < 3) {
       toast.error("Cannot make canonical! No locked matching available.");
@@ -152,93 +464,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
   
     console.log("Transformed to canonical matching");
     toast.success("Successfully transformed to canonical matching!");
-    saveStateToHistory();
-  };
-
-  const loadStateFromHistory = (state: any) => {
-    setLines(state.lines);
-    setPointMap(new Map(state.pointMap));
-    setFreePoint(state.freePoint);
-    setSavedStates(state.savedStates);
-    setLocked(state.locked);
-    setFreedPoints(state.freedPoints);
-    setScale(state.scale);
-    setPosition(state.position);
-    setFlashRed(state.flashRed);
-    setHoveredLineIndex(state.hoveredLineIndex);
-    setValidFlipPoints(state.validFlipPoints);
-    setPendingPoint(state.pendingPoint);
-    setIsDragging(state.isDragging);
-    setLastPointerPosition(state.lastPointerPosition);
-  };
-
-  const saveStateToHistory = () => {
-    const newState = {
-      lines,
-      pointMap: Array.from(pointMap.entries()),
-      freePoint,
-      savedStates,
-      locked,
-      freedPoints,
-      scale,
-      position,
-      flashRed,
-      hoveredLineIndex,
-      validFlipPoints,
-      pendingPoint,
-      isDragging,
-      lastPointerPosition,
-    };
-
-    history.current = history.current.slice(0, historyStep.current + 1);
-    history.current = history.current.concat([newState]);
-    historyStep.current += 1;
-
-    if (history.current.length > 20) {
-      history.current.shift();
-      historyStep.current -= 1;
-    }
-  };
-
-  const saveMatching = (matching: Matching) => {
-    if (!matching || !matching.segments || !matching.pointMap) {
-      console.error("Invalid matching data:", matching);
-      return;
-    }
-
-    const GRID_ROWS = 700 / GRID_SIZE;
-
-    const uniqueLines = Array.from(
-      new Map(
-        matching.segments.map((line) => [
-          JSON.stringify({
-            start: { x: line.start.x, y: line.start.y },
-            end: { x: line.end.x, y: line.end.y },
-          }),
-          line,
-        ])
-      ).values()
-    );
-
-    const newState = {
-      segmentCount: uniqueLines.length,
-      lines: uniqueLines.map(({ start, end }) => ({
-        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
-        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
-      })),
-      freePoint: matching.freePoint
-        ? {
-            x: matching.freePoint.x / GRID_SIZE,
-            y: GRID_ROWS - matching.freePoint.y / GRID_SIZE,
-          }
-        : null,
-    };
-
-    console.log("🔹 Saving Matching", savedStates.length + 1);
-    console.table(newState.lines);
-
-    setSavedStates((prevStates) => [...prevStates, newState]);
-
     saveStateToHistory();
   };
 
@@ -321,6 +546,126 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       toast(`⚠️ Capped at ${MAX_MATCHINGS} matchings`, { icon: "⏳" });
     }
   };
+
+  const saveMatching = (matching: Matching) => {
+    if (!matching || !matching.segments || !matching.pointMap) {
+      console.error("Invalid matching data:", matching);
+      return;
+    }
+
+    const GRID_ROWS = 700 / GRID_SIZE;
+
+    const uniqueLines = Array.from(
+      new Map(
+        matching.segments.map((line) => [
+          JSON.stringify({
+            start: { x: line.start.x, y: line.start.y },
+            end: { x: line.end.x, y: line.end.y },
+          }),
+          line,
+        ])
+      ).values()
+    );
+
+    const newState = {
+      segmentCount: uniqueLines.length,
+      lines: uniqueLines.map(({ start, end }) => ({
+        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
+        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
+      })),
+      freePoint: matching.freePoint
+        ? {
+            x: matching.freePoint.x / GRID_SIZE,
+            y: GRID_ROWS - matching.freePoint.y / GRID_SIZE,
+          }
+        : null,
+    };
+
+    console.log("🔹 Saving Matching", savedStates.length + 1);
+    console.table(newState.lines);
+
+    setSavedStates((prevStates) => [...prevStates, newState]);
+
+    saveStateToHistory();
+  };
+
+  const saveState = () => {
+    if (lines.length === 0 || freePoint === null || pointMap.size % 2 == 0) {
+      toast.error("Cannot save state! Incomplete matching.");
+      return;
+    }
+
+    const GRID_ROWS = 700 / GRID_SIZE;
+
+    const uniqueLines = Array.from(
+      new Map(
+        lines.map((line) => [
+          JSON.stringify({
+            start: { x: line.start.x, y: line.start.y },
+            end: { x: line.end.x, y: line.end.y },
+          }),
+          line,
+        ])
+      ).values()
+    );
+
+    const newState = {
+      segmentCount: uniqueLines.length * 2,
+      lines: uniqueLines.map(({ start, end }) => ({
+        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
+        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
+      })),
+      freePoint: {
+        x: freePoint.x / GRID_SIZE,
+        y: GRID_ROWS - freePoint.y / GRID_SIZE,
+      },
+    };
+
+    const isDuplicate = savedStates.some(
+      (state) =>
+        JSON.stringify(state.lines) === JSON.stringify(newState.lines) &&
+        JSON.stringify(state.freePoint) === JSON.stringify(newState.freePoint)
+    );
+
+    if (isDuplicate) {
+      toast.error("Cannot save duplicate state!");
+      return;
+    }
+
+    console.log("🔹 Saved Matching", savedStates.length + 1);
+    console.table(newState.lines);
+
+    setSavedStates((prevStates) => [...prevStates, newState]);
+
+    setLocked(true);
+    setPendingPoint(null);
+    toast.success("Successfully saved matching!");
+  };
+
+  // ===== 7. Canvas actions =====
+
+  const handleEdit = () => {
+    setLocked(false);
+    if (freePoint) {
+      setPendingPoint(freePoint);
+    }
+    toast.success("Unlocked matching for editing!");
+  };
+  
+  const handleClear = () => {
+    setPointMap(new Map());
+    setLines([]);
+    setFreePoint(null);
+    setLocked(false);
+    setFreedPoints([]);
+    setFlashRed(false);
+    setValidFlipPoints([]);
+    setPendingPoint(null);
+    saveStateToHistory();
+    toast.success("Canvas cleared!");
+  };
+
+  // ===== 8. Canvas public API =====
 
   useImperativeHandle(ref, () => ({
     getPoints: () => Array.from(pointMap.values()),
@@ -537,343 +882,7 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     
   }));
 
-  const handleCanvasClickAction = (e: any) => {
-    saveStateToHistory();
-    const stage = e.target.getStage();
-    const pointerPos = stage.getPointerPosition();
-    if (!pointerPos) return;
-
-    const adjustedX = (pointerPos.x - position.x) / scale;
-    const adjustedY = (pointerPos.y - position.y) / scale;
-
-    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
-    const pointKey = `${snappedPos.x},${snappedPos.y}`;
-
-    const canvasWidth = stage.width();
-    const canvasHeight = stage.height();
-
-    if (!isOnGrid(snappedPos, GRID_SIZE, canvasWidth, canvasHeight)) {
-      toast.error("Points can only be placed on visible grid lines.");
-      return;
-    }
-
-    if (pointMap.has(pointKey)) {
-      toast.error("Cannot place points on top of each other!");
-      return;
-    }
-
-    if (
-      wouldCreateCollinearity(
-        { ...snappedPos, key: `${snappedPos.x},${snappedPos.y}` },
-        pointMap
-      )
-    ) {
-      toast.error("Cannot create collinear points!");
-      return;
-    }
-
-    if (pendingPoint) {
-      const startPoint = {
-        ...pendingPoint,
-        key: `${pendingPoint.x},${pendingPoint.y}`,
-      };
-      const endPoint = { ...snappedPos, key: pointKey };
-
-      if (wouldCrossExistingSegments(startPoint, endPoint, lines)) {
-        toast.error("Cannot create segment that crosses other lines!");
-        return;
-      }
-
-      const newMap = new Map(pointMap);
-      if (!newMap.has(startPoint.key)) {
-        newMap.set(startPoint.key, startPoint);
-      }
-      newMap.set(pointKey, endPoint);
-
-
-      const newSegment: Segment = {
-        start: newMap.get(startPoint.key)!,
-        end: newMap.get(pointKey)!,
-      };
-
-      setPointMap(newMap);
-      setLines((prevLines) => [...prevLines, newSegment]);
-      setPendingPoint(null);
-
-      setFreePoint(newMap.size % 2 === 1 ? newMap.get(pointKey) ?? null : null);
-    } else {
-      const newPoint = { ...snappedPos, key: pointKey };
-      setPointMap((prevMap) => {
-        const newMap = new Map(prevMap);
-        newMap.set(pointKey, newPoint);
-        return newMap;
-      });
-
-      setPendingPoint(snappedPos);
-
-      if (pointMap.size % 2 === 0) {
-        setFreePoint(newPoint);
-      } else {
-        setFreePoint(null);
-      }
-    }
-  };
-
-  const saveState = () => {
-    if (lines.length === 0 || freePoint === null || pointMap.size % 2 == 0) {
-      toast.error("Cannot save state! Incomplete matching.");
-      return;
-    }
-
-    const GRID_ROWS = 700 / GRID_SIZE;
-
-    const uniqueLines = Array.from(
-      new Map(
-        lines.map((line) => [
-          JSON.stringify({
-            start: { x: line.start.x, y: line.start.y },
-            end: { x: line.end.x, y: line.end.y },
-          }),
-          line,
-        ])
-      ).values()
-    );
-
-    const newState = {
-      segmentCount: uniqueLines.length * 2,
-      lines: uniqueLines.map(({ start, end }) => ({
-        start: { x: start.x / GRID_SIZE, y: GRID_ROWS - start.y / GRID_SIZE },
-        end: { x: end.x / GRID_SIZE, y: GRID_ROWS - end.y / GRID_SIZE },
-      })),
-      freePoint: {
-        x: freePoint.x / GRID_SIZE,
-        y: GRID_ROWS - freePoint.y / GRID_SIZE,
-      },
-    };
-
-    const isDuplicate = savedStates.some(
-      (state) =>
-        JSON.stringify(state.lines) === JSON.stringify(newState.lines) &&
-        JSON.stringify(state.freePoint) === JSON.stringify(newState.freePoint)
-    );
-
-    if (isDuplicate) {
-      toast.error("Cannot save duplicate state!");
-      return;
-    }
-
-    console.log("🔹 Saved Matching", savedStates.length + 1);
-    console.table(newState.lines);
-
-    setSavedStates((prevStates) => [...prevStates, newState]);
-
-    setLocked(true);
-    setPendingPoint(null);
-    toast.success("Successfully saved matching!");
-  };
-
-  const handleWheel = (e: any) => {
-    e.evt.preventDefault();
-
-    const stage = e.target.getStage();
-    const oldScale = scale;
-    const pointer = stage.getPointerPosition();
-
-    const mousePointTo = {
-      x: (pointer.x - position.x) / oldScale,
-      y: (pointer.y - position.y) / oldScale,
-    };
-
-    const newScale = e.evt.deltaY < 0 ? oldScale * 1.1 : oldScale / 1.1;
-    const limitedScale = Math.min(Math.max(newScale, 0.3), 5);
-
-    const newPos = {
-      x: pointer.x - mousePointTo.x * limitedScale,
-      y: pointer.y - mousePointTo.y * limitedScale,
-    };
-
-    setScale(limitedScale);
-    setPosition(newPos);
-  };
-
-  const handleMouseDown = (e: any) => {
-    const buttonCode = e.evt.button;
-
-    if (buttonCode === 1) {
-      e.evt.preventDefault();
-      setIsDragging(true);
-
-      const stage = e.target.getStage();
-      const pointerPos = stage.getPointerPosition();
-      setLastPointerPosition(pointerPos);
-      return;
-    }
-
-    if (buttonCode === 0) {
-      if (locked) {
-        handleFlipAction(e);
-      } else {
-        handleCanvasClickAction(e);
-      }
-    }
-  };
-
-  const handleMouseMove = (e: any) => {
-    if (!isDragging || !lastPointerPosition) return;
-
-    e.evt.preventDefault();
-    const stage = e.target.getStage();
-    const pointerPos = stage.getPointerPosition();
-
-    const dx = pointerPos.x - lastPointerPosition.x;
-    const dy = pointerPos.y - lastPointerPosition.y;
-
-    setPosition((prev) => ({
-      x: prev.x + dx,
-      y: prev.y + dy,
-    }));
-    setLastPointerPosition(pointerPos);
-  };
-
-  const handleMouseUp = (e: any) => {
-    if (e.evt.button === 1) {
-      setIsDragging(false);
-      setLastPointerPosition(null);
-    }
-  };
-
-  const handleMouseOut = () => {
-    setIsDragging(false);
-    setLastPointerPosition(null);
-  };
-
-  const isValidFlip = (
-    freedPoint: { x: number; y: number },
-    currentFreePoint: { x: number; y: number } | null
-  ) => {
-    if (!currentFreePoint) return false;
-
-    const newSegment: Segment = {
-      start: { ...freedPoint, key: `${freedPoint.x},${freedPoint.y}` },
-      end: {
-        ...currentFreePoint,
-        key: `${currentFreePoint.x},${currentFreePoint.y}`,
-      },
-    };
-
-    const otherLines: Segment[] = lines
-      .filter(
-        (line) =>
-          !freedPoints.some(
-            (fp) =>
-              (line.start.x === fp.x && line.start.y === fp.y) ||
-              (line.end.x === fp.x && line.end.y === fp.y)
-          )
-      )
-      .map((line) => ({
-        start: { ...line.start, key: `${line.start.x},${line.start.y}` },
-        end: { ...line.end, key: `${line.end.x},${line.end.y}` },
-      }));
-
-    return !otherLines.some((line) => doesIntersect(line, newSegment));
-  };
-
-  const handleLineClick = (index: number) => {
-    if (!locked || freedPoints.length > 0) return;
-
-    const removedLine = lines[index];
-    const validPoints: { x: number; y: number }[] = [];
-
-    if (freePoint && isValidFlip(removedLine.start, freePoint)) {
-      validPoints.push(removedLine.start);
-    }
-
-    if (freePoint && isValidFlip(removedLine.end, freePoint)) {
-      validPoints.push(removedLine.end);
-    }
-
-    if (validPoints.length === 0) {
-      toast.error("No valid flips possible for this line!");
-      return;
-    }
-
-    const newLines = lines.filter((_, i) => i !== index);
-    setLines(newLines);
-    setFreedPoints([removedLine.start, removedLine.end]);
-    setValidFlipPoints(validPoints);
-
-    console.log(
-      `Removed line at index ${index}, freed points:`,
-      removedLine.start,
-      removedLine.end
-    );
-    console.log(`Valid flip points:`, validPoints);
-  };
-
-  const handleLineHover = (index: number) => {
-    if (locked) {
-      setHoveredLineIndex(index);
-    }
-  };
-
-  const handleLineLeave = () => {
-    setHoveredLineIndex(null);
-  };
-
-  const handleFlipAction = (e: any) => {
-    if (!locked || freedPoints.length !== 2 || !freePoint) return;
-
-    const stage = e.target.getStage();
-    const pointerPos = stage.getPointerPosition();
-    if (!pointerPos) return;
-
-    const adjustedX = (pointerPos.x - position.x) / scale;
-    const adjustedY = (pointerPos.y - position.y) / scale;
-
-    const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
-
-    const isFreedPoint = freedPoints.some(
-      (p) => p.x === snappedPos.x && p.y === snappedPos.y
-    );
-
-    if (!isFreedPoint) {
-      toast.error("Click on one of the freed points to connect!");
-      return;
-    }
-
-    const isValidFlipPoint = validFlipPoints.some(
-      (p) => p.x === snappedPos.x && p.y === snappedPos.y
-    );
-
-    if (!isValidFlipPoint) {
-      toast.error("This is not a valid flip point!");
-      return;
-    }
-
-    const newSegment: Segment = {
-      start: { ...snappedPos, key: `${snappedPos.x},${snappedPos.y}` },
-      end: { ...freePoint, key: `${freePoint.x},${freePoint.y}` },
-    };
-
-    const newFreePoint = freedPoints.find(
-      (p) => p.x !== snappedPos.x || p.y !== snappedPos.y
-    );
-
-    if (!newFreePoint) {
-      console.error("Could not find the other freed point");
-      return;
-    }
-
-    setLines((prevLines) => [...prevLines, newSegment]);
-    setFreedPoints([]);
-    setFreePoint(newFreePoint);
-    setValidFlipPoints([]);
-
-    console.log(
-      `Added new line from (${snappedPos.x}, ${snappedPos.y}) to (${freePoint.x}, ${freePoint.y})`
-    );
-    console.log(`New free point: (${newFreePoint.x}, ${newFreePoint.y})`);
-  };
+  // ===== 9. JSX Rendering =====
 
   return (
     <div className="flex flex-col items-center mt-5">
@@ -1002,6 +1011,4 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
 });
 
 KonvaCanvas.displayName = "KonvaCanvas";
-
 export default KonvaCanvas;
-
