@@ -82,7 +82,3 @@ The tool supports exporting matchings and flip graphs in the following formats:
 ## 🧪 Feedback and Contributions
 
 This project was created for educational purposes and is not actively maintained. However, feel free to fork it or submit issues if you find bugs or want to build upon it.
-
-## 📜 License
-
-MIT License (or insert applicable license)
