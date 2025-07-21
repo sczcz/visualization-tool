@@ -5,30 +5,21 @@ import dynamic from "next/dynamic";
 import toast, { Toaster } from 'react-hot-toast';
 import Header from "./components/Header";
 import Sidebar from "./components/SideBar";
-import { KonvaCanvasRef } from "./KonvaCanvas"; // Import the ref type
+import { KonvaCanvasRef } from "./KonvaCanvas";
 import { buildFlipGraph, saveFlipGraphToFile } from "./utils/GraphUtils";
 
-// Use dynamic import with ssr: false
 const KonvaCanvas = dynamic(() => import("./KonvaCanvas"), { ssr: false });
 
 export default function Home() {
-  // Define state for mode
   const [mode, setMode] = useState<'manual' | 'auto' | 'target'>('manual');
-  
-  // Define state for history (for undo functionality)
   const [history, setHistory] = useState<any[]>([{}]);
-  
-  // Create a ref for the KonvaCanvas
   const canvasRef = useRef<KonvaCanvasRef>(null);
-  
-  // State for sidebar statistics
   const [pointCount, setPointCount] = useState(0);
   const [segmentCount, setSegmentCount] = useState(0);
   const [avgDistance, setAvgDistance] = useState(0);
   const [freePointCoords, setFreePointCoords] = useState<{ x: number, y: number } | null>(null);
   const [savedStates, setSavedStates] = useState<any[]>([]);
-  
-  // Update statistics from canvas data
+
   const updateStatistics = useCallback(() => {
     if (!canvasRef.current) return;
     
@@ -46,8 +37,7 @@ export default function Home() {
 
     } : null);
     setSavedStates(states);
-    
-    // Calculate average distance
+
     if (lines.length > 0) {
       const totalDistance = lines.reduce((acc, line) => {
         const dx = line.start.x - line.end.x;
@@ -60,14 +50,12 @@ export default function Home() {
       setAvgDistance(0);
     }
   }, []);
-  
-  // Set up interval to update statistics
+
   useEffect(() => {
     const interval = setInterval(updateStatistics, 500);
     return () => clearInterval(interval);
   }, [updateStatistics]);
   
-  // Define handlers for the Header component
   const handleModeChange = useCallback((newMode: 'manual' | 'auto' | 'target') => {
     setMode(newMode);
   }, []);
@@ -78,8 +66,7 @@ export default function Home() {
     toast.success("Canvas saved");
   }, []);
   
-  
-  // Define handlers for the Sidebar component
+
   const handleRandomGenerate = useCallback((numPoints: number) => {
     if (canvasRef.current) {
       canvasRef.current.generateRandomPoints(numPoints);
@@ -88,7 +75,6 @@ export default function Home() {
     
     console.log(`Generate random matching with ${numPoints} points`);
     
-    // Add to history
     setHistory(prev => [...prev, { numPoints }]);
     toast.success(`Generated random matching with ${numPoints} points`);
   }, [updateStatistics]);
@@ -96,8 +82,8 @@ export default function Home() {
   const handleClearHistory = useCallback(() => {
     
     if (canvasRef.current) {
-      canvasRef.current.clearSavedStates(); // Clear states in the canvas component
-      updateStatistics(); // Update the UI
+      canvasRef.current.clearSavedStates();
+      updateStatistics();
     }
 
     setHistory([{}]);

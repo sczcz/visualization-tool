@@ -61,7 +61,6 @@ export const exportMatchingsAsNamedCSV = (states: any[]) => {
   const nameToPoint: Record<string, { x: number; y: number }> = {};
   const pointOrder: string[] = [];
 
-  // Generate unique names A, B, ..., Z, AA, AB, etc.
   const getNameForIndex = (index: number): string => {
     let name = "";
     do {
@@ -75,7 +74,6 @@ export const exportMatchingsAsNamedCSV = (states: any[]) => {
 
   const getPointKey = (x: number, y: number) => `${x},${y}`;
 
-  // First pass: assign names
   states.forEach((state) => {
     state.lines.forEach((line: any) => {
       const points = [line.start, line.end];

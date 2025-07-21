@@ -7,9 +7,7 @@ export const snapToGrid = (x: number, y: number, GRID_SIZE: number) => ({
 });
 
 export const isOnGrid = (point: { x: number, y: number }, GRID_SIZE: number, canvasWidth: number, canvasHeight: number) => {
-  // Check if the point is within the visible canvas bounds
   const isWithinBounds = (point.x >= 0 && point.x <= canvasWidth && point.y >= 0 && point.y <= canvasHeight);
-  // Check if the point is on a grid line
   const isOnGridLine = (point.x % GRID_SIZE === 0) && (point.y % GRID_SIZE === 0);
   return isWithinBounds && isOnGridLine;
 };

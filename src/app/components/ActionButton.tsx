@@ -7,7 +7,7 @@ interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
   tooltip?: string;
-  tooltipId?: string;  // Add this prop
+  tooltipId?: string;
 }
 
 const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>((props, ref) => {
@@ -18,11 +18,10 @@ const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>((props, re
     size = 'md',
     icon,
     tooltip,
-    tooltipId,  // Get the tooltipId from props
+    tooltipId,
     ...rest
   } = props;
 
-  // Use the provided ID or create a fallback (though fallback may still cause hydration issues)
   const actualTooltipId = tooltip ? (tooltipId || `tooltip-${Math.random().toString(36).substring(2, 11)}`) : undefined;
 
   const variantStyles = {

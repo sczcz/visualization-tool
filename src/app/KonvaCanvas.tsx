@@ -190,13 +190,10 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       lastPointerPosition,
     };
 
-    // Remove all states after current step
     history.current = history.current.slice(0, historyStep.current + 1);
-    // Push the new state
     history.current = history.current.concat([newState]);
     historyStep.current += 1;
 
-    // Limit history to the last 20 states
     if (history.current.length > 20) {
       history.current.shift();
       historyStep.current -= 1;
@@ -261,7 +258,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     );
 
     const findMatchings = (remaining: Point[], segments: Segment[]) => {
-      // Stop early if we've reached the cap
       if (matchingsMap.size >= MAX_MATCHINGS) return;
 
       if (remaining.length === 1) {
@@ -786,16 +782,12 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     if (!locked || freedPoints.length > 0) return;
 
     const removedLine = lines[index];
-
-    // Check which flips would be valid
     const validPoints: { x: number; y: number }[] = [];
 
-    // Check if connecting start point to free point would be valid
     if (freePoint && isValidFlip(removedLine.start, freePoint)) {
       validPoints.push(removedLine.start);
     }
 
-    // Check if connecting end point to free point would be valid
     if (freePoint && isValidFlip(removedLine.end, freePoint)) {
       validPoints.push(removedLine.end);
     }
@@ -805,8 +797,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    // If we get here, at least one valid flip is possible
-    // Create a new array without the removed line
     const newLines = lines.filter((_, i) => i !== index);
     setLines(newLines);
     setFreedPoints([removedLine.start, removedLine.end]);
@@ -837,13 +827,11 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    // Adjust for scale and position
     const adjustedX = (pointerPos.x - position.x) / scale;
     const adjustedY = (pointerPos.y - position.y) / scale;
 
     const snappedPos = snapToGrid(adjustedX, adjustedY, GRID_SIZE);
 
-    // Check if the clicked point is one of the freed points
     const isFreedPoint = freedPoints.some(
       (p) => p.x === snappedPos.x && p.y === snappedPos.y
     );
@@ -853,7 +841,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    // Check if this is a valid flip point
     const isValidFlipPoint = validFlipPoints.some(
       (p) => p.x === snappedPos.x && p.y === snappedPos.y
     );
@@ -868,7 +855,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       end: { ...freePoint, key: `${freePoint.x},${freePoint.y}` },
     };
 
-    // The new free point is the other freed point
     const newFreePoint = freedPoints.find(
       (p) => p.x !== snappedPos.x || p.y !== snappedPos.y
     );
@@ -878,7 +864,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
       return;
     }
 
-    // Add the new line
     setLines((prevLines) => [...prevLines, newSegment]);
     setFreedPoints([]);
     setFreePoint(newFreePoint);
@@ -1012,7 +997,6 @@ const KonvaCanvas = forwardRef<KonvaCanvasRef, {}>((props, ref) => {
           </Layer>
         </Stage>
       </div>
-      {/* Action buttons */}
     </div>
   );
 });

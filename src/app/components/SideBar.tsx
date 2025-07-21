@@ -58,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }
 
-  // Combine classes manually
   const sidebarClasses = ["p-4 h-full overflow-auto border-l", className]
     .filter(Boolean)
     .join(" ");
