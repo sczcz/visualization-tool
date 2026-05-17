@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import toast, { Toaster } from 'react-hot-toast';
 import Header from "./components/Header";
 import Sidebar from "./components/SideBar";
-import { KonvaCanvasRef } from "./KonvaCanvas";
+import { KonvaCanvasRef } from "./types";
 import { buildFlipGraph, saveFlipGraphToFile } from "./utils/GraphUtils";
 
 const KonvaCanvas = dynamic(() => import("./KonvaCanvas"), { ssr: false });
